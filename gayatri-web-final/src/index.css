@@ -1,0 +1,186 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Poppins:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-heading: "Poppins", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  /* Sampled directly from logo_gayatri-enterprises.jpeg */
+  --color-navy: #0F2C4A;
+  --color-navy-light: #173A5E;
+  --color-slate: #5A6478;
+  --color-emerald-light: #EAF6EF;
+  --color-emerald: #1B7A52;
+  --color-emerald-deep: #145C3F;
+  --color-soft-bg: #F7FAF9;
+  --color-border: rgba(15, 44, 74, 0.08);
+  --color-paper: #F4F1E8;
+  --color-stamp: #9B3B2E;
+
+  --animate-orbit-spin: orbit-spin 70s linear infinite;
+  @keyframes orbit-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+}
+
+/* Subtle per-character focus-in, used for headline text swaps */
+@keyframes char-reveal {
+  from { opacity: 0; filter: blur(5px); transform: translateY(5px); }
+  to { opacity: 1; filter: blur(0); transform: translateY(0); }
+}
+.char-reveal {
+  display: inline-block;
+  animation: char-reveal 0.5s ease-out both;
+}
+
+@keyframes logo-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.logo-marquee-track {
+  animation-name: logo-marquee;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+/* One-time attention pulse for the hero CTA — plays once shortly after load, then stops */
+@keyframes hero-cta-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+.hero-cta-pulse {
+  animation: hero-cta-pulse 0.7s ease-in-out 1.6s 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .logo-marquee-track {
+    animation: none;
+  }
+  .animate-orbit-spin {
+    animation: none;
+  }
+  .hero-cta-pulse {
+    animation: none;
+  }
+}
+
+@layer base {
+  html {
+    overflow-x: hidden;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    color: var(--color-slate);
+    background-color: #FFFFFF;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4, h5, h6, .heading {
+    font-family: var(--font-heading);
+    color: var(--color-navy);
+  }
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Awwwards specific utilities */
+.clip-text {
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0% 100%);
+}
+
+.image-reveal-wrapper {
+  clip-path: polygon(0 0, 100% 0, 100% 0, 0 0);
+}
+
+.will-change-transform {
+  will-change: transform;
+}
+
+.thin-border {
+  border: 1px solid var(--color-border);
+}
+
+.thin-border-b {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.thin-border-t {
+  border-top: 1px solid var(--color-border);
+}
+
+.thin-border-x {
+  border-left: 1px solid var(--color-border);
+  border-right: 1px solid var(--color-border);
+}
+
+/* Glass effect for navbar */
+.nav-glass {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Outlined wordmark that fills white in a diagonal wave sweep on hover */
+.wave-fill-text {
+  color: transparent;
+  -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.35);
+  background-image: linear-gradient(100deg, #ffffff 50%, transparent 50%);
+  background-size: 200% 100%;
+  background-position: 100% 0;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  transition: background-position 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.wave-fill-text:hover {
+  background-position: 0% 0;
+}
+
+/* Outlined heading: rises green from the bottom once on arrival, unfills, then fills on hover.
+   Uses a stacked outline+fill layer clipped with clip-path (not background-clip:text like
+   .wave-fill-text), so glyphs with closed loops/descenders (g, e) always render fully —
+   and so the motion (a vertical rise) reads as distinct from the footer wordmark's
+   horizontal diagonal sweep. */
+.wave-fill-heading {
+  position: relative;
+  display: inline-block;
+}
+
+.wave-fill-heading .outline-layer {
+  display: block;
+  color: transparent;
+  -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.5);
+  transition: -webkit-text-stroke-color 1.4s cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.wave-fill-heading.is-revealing .outline-layer,
+.wave-fill-heading:hover .outline-layer {
+  -webkit-text-stroke-color: transparent;
+}
+
+.wave-fill-heading .fill-layer {
+  position: absolute;
+  inset: 0;
+  color: var(--color-emerald);
+  pointer-events: none;
+  clip-path: polygon(0 140%, 100% 150%, 100% 140%, 0 140%);
+  transition: clip-path 1.4s cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+.wave-fill-heading.is-revealing .fill-layer,
+.wave-fill-heading:hover .fill-layer {
+  clip-path: polygon(0 -25%, 100% -15%, 100% 140%, 0 140%);
+}
+

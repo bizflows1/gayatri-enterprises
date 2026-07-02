@@ -1,0 +1,40 @@
+# --- SPA fallback ---
+# React Router handles routing client-side. Without this, refreshing on
+# /about or /blog/some-id (or sharing that link) 404s, because Apache looks
+# for an actual file/folder at that path. Anything that isn't a real file or
+# directory falls back to index.html so the router can take over.
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  RewriteRule ^index\.html$ - [L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /index.html [L]
+</IfModule>
+
+# --- Compression ---
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css text/javascript application/javascript application/json image/svg+xml
+</IfModule>
+
+# --- Caching ---
+# Vite content-hashes JS/CSS/image filenames (e.g. index-D-jK9z1X.js), so it's
+# always safe to cache those for a long time — a new deploy gets a new
+# filename automatically. index.html itself must stay fresh so visitors
+# always get the latest set of hashed asset references.
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresByType text/html "access plus 0 seconds"
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType image/jpeg "access plus 1 year"
+  ExpiresByType image/png "access plus 1 year"
+  ExpiresByType image/svg+xml "access plus 1 year"
+  ExpiresByType video/mp4 "access plus 1 year"
+</IfModule>
+
+<IfModule mod_headers.c>
+  <FilesMatch "\.html$">
+    Header set Cache-Control "no-cache, must-revalidate"
+  </FilesMatch>
+</IfModule>

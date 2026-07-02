@@ -1,0 +1,236 @@
+@extends('layouts.admin')
+
+@section('content')
+<style>
+    /* Premium minimalist scrollbar styling */
+    .overflow-y-auto::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    .overflow-y-auto::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .overflow-y-auto::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+    .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+</style>
+
+<div class="h-full flex flex-col overflow-hidden gap-5">
+    <!-- Non-scrollable Top Section -->
+    <div class="shrink-0 flex flex-col gap-5">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h2 class="text-3xl font-extrabold tracking-tight brand-font text-slate-900">Master Task Center</h2>
+                <p class="text-slate-500 font-sans mt-1">Manage, filter and track all firm professional assignments.</p>
+            </div>
+            <div class="flex items-center gap-3 shrink-0">
+                {{-- Completed Toggle --}}
+                <a href="{{ request('show_completed') == '1' ? route('tasks.manage') : route('tasks.manage', array_merge(request()->query(), ['show_completed' => '1'])) }}"
+                   class="inline-flex items-center gap-2 {{ request('show_completed') == '1' ? 'bg-green-600 text-white' : 'bg-white border border-slate-200 text-slate-600' }} font-bold px-4 py-2.5 rounded-xl hover:opacity-90 transition text-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    {{ request('show_completed') == '1' ? 'Hiding Completed' : 'View Completed' }}
+                </a>
+                @if(auth()->user()->role === 'admin')
+                <a href="{{ route('tasks.assign') }}" class="btn-emerald text-white font-bold px-6 py-3 rounded-xl shadow-lg shadow-emerald-200 flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                    <span>Assign New Task</span>
+                </a>
+                @endif
+            </div>
+        </div>
+
+        <!-- Filters Bar -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+            <form method="GET" action="{{ route('tasks.manage') }}" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 items-end">
+                @if(request('show_completed'))
+                    <input type="hidden" name="show_completed" value="{{ request('show_completed') }}">
+                @endif
+
+                <div class="col-span-1 sm:col-span-2 {{ auth()->user()->role === 'admin' ? 'lg:col-span-3' : 'lg:col-span-4' }}">
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Search Task Name</label>
+                    <div class="relative">
+                        <input type="text" name="search" value="{{ request('search') }}" placeholder="Search tasks by name..." class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 font-medium text-sm">
+                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        </div>
+                    </div>
+                </div>
+
+                @if(auth()->user()->role === 'admin')
+                <div class="col-span-1 lg:col-span-2">
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Assigned Staff</label>
+                    <select name="staff_id" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 font-medium text-sm">
+                        <option value="all">All Staff</option>
+                        @foreach($users as $user)
+                            <option value="{{ $user->id }}" {{ request('staff_id') == $user->id ? 'selected' : '' }}>
+                                {{ $user->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                @endif
+
+                <div class="col-span-1 lg:col-span-2">
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Status</label>
+                    <select name="status" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 font-medium text-sm">
+                        <option value="all">All Statuses</option>
+                        <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
+                        <option value="completed" {{ request('status') == 'completed' ? 'selected' : '' }}>Completed</option>
+                        <option value="in_progress" {{ request('status') == 'in_progress' ? 'selected' : '' }}>In Progress</option>
+                    </select>
+                </div>
+
+                <div class="col-span-1 lg:col-span-2">
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Priority</label>
+                    <select name="priority" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 font-medium text-sm">
+                        <option value="all">All Priorities</option>
+                        <option value="urgent" {{ request('priority') == 'urgent' ? 'selected' : '' }}>Urgent</option>
+                        <option value="high" {{ request('priority') == 'high' ? 'selected' : '' }}>High</option>
+                        <option value="medium" {{ request('priority') == 'medium' ? 'selected' : '' }}>Medium</option>
+                        <option value="low" {{ request('priority') == 'low' ? 'selected' : '' }}>Low</option>
+                    </select>
+                </div>
+
+                <div class="col-span-1 {{ auth()->user()->role === 'admin' ? 'lg:col-span-1' : 'lg:col-span-2' }}">
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Timeline</label>
+                    <select name="timeline" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 font-medium text-sm">
+                        <option value="all">All Time</option>
+                        <option value="today" {{ request('timeline') == 'today' ? 'selected' : '' }}>Due Today</option>
+                        <option value="overdue" {{ request('timeline') == 'overdue' ? 'selected' : '' }}>Overdue Passed</option>
+                        <option value="upcoming" {{ request('timeline') == 'upcoming' ? 'selected' : '' }}>Upcoming</option>
+                    </select>
+                </div>
+
+                <div class="col-span-1 sm:col-span-2 lg:col-span-2 flex gap-2">
+                    <button type="submit" class="flex-1 btn-navy text-white text-sm font-bold py-2.5 rounded-xl">Apply</button>
+                    <a href="{{ route('tasks.manage') }}" class="p-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition" title="Reset Filters">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Results (Scrollable panel) -->
+    <div class="bg-white rounded-2xl shadow border border-slate-200 flex-1 min-h-0 flex flex-col overflow-hidden pt-0.5">
+        <div class="overflow-x-auto overflow-y-auto flex-1">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-slate-50 border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+                        <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-center w-16">S.No.</th>
+                        <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Detail</th>
+                        <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Assignees</th>
+                        <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-center">Priority</th>
+                        <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Deadline</th>
+                        <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Status</th>
+                        <th class="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    @forelse($tasks as $task)
+                    <tr class="hover:bg-slate-50 transition group">
+                        <td class="px-6 py-5 text-center font-mono text-slate-400 font-bold w-16">
+                            {{ ($tasks->currentPage() - 1) * $tasks->perPage() + $loop->iteration }}
+                        </td>
+                        <td class="px-6 py-5">
+                            <span class="text-sm font-bold text-slate-900 block group-hover:text-blue-600 transition">{{ $task->title }}</span>
+                            <span class="text-[11px] text-slate-400 font-sans">{{ Str::limit($task->description, 50) }}</span>
+                        </td>
+                        <td class="px-6 py-5">
+                            <div class="flex -space-x-2">
+                                @foreach($task->assignees as $assignee)
+                                <img src="{{ $assignee->avatar_url }}" class="w-8 h-8 rounded-full border-2 border-white object-cover" title="{{ $assignee->name }}">
+                                @endforeach
+                            </div>
+                        </td>
+                        <td class="px-6 py-5 text-center">
+                            @php
+                                $priorityStyles = [
+                                    'urgent' => 'bg-red-100 text-red-700 border-red-200',
+                                    'high' => 'bg-orange-100 text-orange-700 border-orange-200',
+                                    'medium' => 'bg-blue-100 text-blue-700 border-blue-200',
+                                    'low' => 'bg-slate-100 text-slate-600 border-slate-200',
+                                ];
+                                $style = $priorityStyles[$task->priority] ?? 'bg-slate-100 text-slate-600';
+                            @endphp
+                            <span class="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase border {{ $style }}">
+                                {{ $task->priority ?: 'Normal' }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-5">
+                            @php
+                                $isOverdue = \Carbon\Carbon::parse($task->due_date)->isPast() && $task->status !== 'completed';
+                            @endphp
+                            <div class="flex flex-col">
+                                <span class="text-xs font-bold {{ $isOverdue ? 'text-red-600' : 'text-slate-600' }}">
+                                    {{ \Carbon\Carbon::parse($task->due_date)->format('d M, Y') }}
+                                </span>
+                                @if($isOverdue)
+                                <span class="text-[9px] font-bold text-red-500 uppercase tracking-tighter">Overdue passed</span>
+                                @endif
+                            </div>
+                        </td>
+                        <td class="px-6 py-5">
+                            <span @class([
+                                'px-3 py-1 text-[10px] font-bold rounded-full uppercase tracking-widest inline-flex items-center gap-1.5',
+                                'bg-yellow-100 text-yellow-700' => $task->status == 'pending',
+                                'bg-green-100 text-green-700' => $task->status == 'completed',
+                                'bg-blue-100 text-blue-700' => !in_array($task->status, ['pending', 'completed'])
+                            ])>
+                                <span class="w-1.5 h-1.5 rounded-full {{ $task->status == 'completed' ? 'bg-green-500' : ($task->status == 'pending' ? 'bg-yellow-500 animate-pulse' : 'bg-blue-500') }}"></span>
+                                {{ $task->status }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-5 text-right">
+                            <div class="flex items-center justify-end gap-2">
+                                @if($task->status === 'completed' && auth()->user()->role === 'admin')
+                                <form action="{{ route('tasks.updateStatus', $task->id) }}" method="POST" class="inline">
+                                    @csrf
+                                    <button type="submit" class="inline-flex items-center gap-2 bg-orange-50 border border-orange-200 px-4 py-2 rounded-xl text-xs font-bold text-orange-600 hover:bg-orange-600 hover:text-white hover:border-orange-600 transition">
+                                        REOPEN
+                                    </button>
+                                </form>
+                                @endif
+                                <a href="{{ route('task.view', $task->id) }}" class="inline-flex items-center gap-2 bg-slate-50 border border-slate-200 px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-blue-600 hover:text-white hover:border-blue-600 transition relative">
+                                    VIEW
+                                    @if($task->unread_chats_count > 0)
+                                    <span class="absolute -top-2 -right-2 bg-red-600 text-white text-[9px] w-5 h-5 flex items-center justify-center rounded-full border-2 border-white animate-bounce">{{ $task->unread_chats_count }}</span>
+                                    @endif
+                                </a>
+                                @if(auth()->user()->role === 'admin')
+                                <form action="{{ route('tasks.destroy', $task->id) }}" method="POST" onsubmit="return confirm('Delete this task permanently?')">
+                                    @csrf @method('DELETE')
+                                    <button class="p-2 text-red-400 hover:text-red-700 hover:bg-red-50 rounded-xl transition" title="Delete Task">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                    </button>
+                                </form>
+                                @endif
+                            </div>
+                        </td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="7" class="px-6 py-20 text-center">
+                            <div class="flex flex-col items-center">
+                                <div class="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+                                    <svg class="w-8 h-8 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                                </div>
+                                <h3 class="text-slate-900 font-bold">No Tasks Found</h3>
+                                <p class="text-slate-400 text-sm">Try adjusting your filters or assign a new task.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+        <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex-shrink-0">
+            {{ $tasks->links() }}
+        </div>
+    </div>
+</div>
+@endsection

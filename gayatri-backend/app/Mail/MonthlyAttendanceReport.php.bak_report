@@ -1,0 +1,40 @@
+<?php
+
+namespace App\Mail;
+
+use Illuminate\Bus\Queueable;
+use Illuminate\Mail\Mailable;
+use Illuminate\Queue\SerializesModels;
+use Carbon\Carbon;
+
+class MonthlyAttendanceReport extends Mailable
+{
+    use Queueable, SerializesModels;
+
+    public $admin;
+    public $reportData;
+    public $startDate;
+    public $endDate;
+    public $monthName;
+
+    /**
+     * Create a new message instance.
+     */
+    public function __construct($admin, $reportData, $startDate, $endDate)
+    {
+        $this->admin = $admin;
+        $this->reportData = $reportData;
+        $this->startDate = Carbon::parse($startDate)->format('d M Y');
+        $this->endDate = Carbon::parse($endDate)->format('d M Y');
+        $this->monthName = Carbon::parse($startDate)->format('F Y');
+    }
+
+    /**
+     * Build the message.
+     */
+    public function build()
+    {
+        return $this->subject("Monthly Attendance Summary Report - {$this->monthName}")
+                    ->view('emails.attendance_report');
+    }
+}

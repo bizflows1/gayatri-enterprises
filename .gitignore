@@ -1,0 +1,13 @@
+# Old versions and backups — don't push these
+gayatri-web/
+gayatri-web-2/
+gayatri-web-4/
+gayatri-web-5/
+gayatri-web-6/
+gayatri-web-final-backup-20260627-125603/
+
+# Claude internal
+.claude/
+
+# Misc planning files
+misc/

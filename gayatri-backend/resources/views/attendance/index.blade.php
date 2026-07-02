@@ -1,0 +1,2354 @@
+@extends('layouts.admin')
+
+@section('content')
+<style>
+    /* Premium scrollbar styling */
+    .overflow-y-auto::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+    .overflow-y-auto::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .overflow-y-auto::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 4px;
+    }
+    .overflow-y-auto::-webkit-scrollbar-thumb:hover {
+        background: #94a3b8;
+    }
+
+    /* Pulse scan effect for camera circular modal */
+    .camera-pulse {
+        box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.7);
+        animation: pulse-ring 1.5s infinite;
+    }
+    @keyframes pulse-ring {
+        0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.7); }
+        70% { transform: scale(1); box-shadow: 0 0 0 15px rgba(79, 70, 229, 0); }
+        100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(79, 70, 229, 0); }
+    }
+
+    /* Live Gradient Flow Box */
+    .gradient-flow {
+        background: linear-gradient(-45deg, #4f46e5, #6366f1, #8b5cf6, #ec4899);
+        background-size: 400% 400%;
+        animation: gradient-anim 15s ease infinite;
+    }
+    @keyframes gradient-anim {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
+</style>
+
+<div class="h-full flex flex-col overflow-hidden gap-5">
+    {{-- Validation Errors Banner --}}
+    @if($errors->any())
+    <div class="shrink-0 bg-rose-50 border-l-4 border-rose-500 p-4 rounded-xl shadow-sm flex items-start gap-3 mb-2 animate-pulse">
+        <div class="text-rose-500 mt-0.5">
+            <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+            </svg>
+        </div>
+        <div>
+            <h4 class="font-bold text-rose-800 text-sm">Please correct the following errors:</h4>
+            <ul class="list-disc pl-4 text-xs text-rose-700 font-semibold space-y-0.5 mt-1">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    </div>
+    @endif
+
+    <!-- TITLE HEADER -->
+    <div class="shrink-0 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200/60 pb-5">
+        <div>
+            <h1 class="text-3xl font-bold brand-font flex items-center gap-3">
+                <span class="bg-indigo-100 p-2 rounded-xl text-indigo-600 flex items-center justify-center">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                </span>
+                <span class="text-slate-900">Attendance Portal</span>
+            </h1>
+            <p class="text-slate-500 text-sm mt-1.5 font-medium">Daily clock-in checkouts, geofencing parameters, and payroll attendance summaries.</p>
+        </div>
+        
+        @if(Auth::user()->isAdmin())
+        <div class="flex gap-2">
+            <!-- Mail monthly report -->
+            <form action="{{ route('attendance.send_report') }}" method="POST">
+                @csrf
+                <input type="hidden" name="start_date" value="{{ $startDate }}">
+                <input type="hidden" name="end_date" value="{{ $endDate }}">
+                <button type="submit" class="btn-moving-gradient text-white font-bold text-xs px-4 py-2.5 rounded-xl transition flex items-center gap-2 shadow-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 19v-8.93a2 2 0 01.89-1.664l8-5.333a2 2 0 012.22 0l8 5.333A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-2.25-1.5a2 2 0 00-2.22 0l-2.25 1.5" /></svg>
+                    Email Report
+                </button>
+            </form>
+
+            <button onclick="toggleModal('settings-modal')" class="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold text-xs px-4 py-2.5 rounded-xl transition flex items-center gap-2 shadow-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                Settings
+            </button>
+        </div>
+        @endif
+    </div>
+
+    <!-- MAIN CONTENT LOGIC -->
+    @if(Auth::user()->isAdmin())
+        <!-- ========================================================
+             ADMINISTRATIVE VIEW
+             ======================================================== -->
+        <!-- Admin Summary Cards -->
+        <div class="shrink-0 grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Present Today -->
+            <div class="grad-green animate-gradient p-5 rounded-2xl text-white shadow-sm hover:shadow-md transition duration-300 flex items-center justify-between">
+                <div>
+                    <span class="text-[10px] sm:text-xs font-bold text-emerald-100 uppercase tracking-wider block">Present Today</span>
+                    <span class="text-2xl sm:text-3xl font-extrabold text-white mt-1 block">{{ $presentToday }}</span>
+                </div>
+                <div class="p-3 bg-white/10 text-white rounded-xl shrink-0">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                </div>
+            </div>
+
+            <!-- Late Check-Ins -->
+            <div class="grad-red animate-gradient p-5 rounded-2xl text-white shadow-sm hover:shadow-md transition duration-300 flex items-center justify-between">
+                <div>
+                    <span class="text-[10px] sm:text-xs font-bold text-rose-100 uppercase tracking-wider block">Late Check-Ins</span>
+                    <span class="text-2xl sm:text-3xl font-extrabold text-white mt-1 block">{{ $lateToday }}</span>
+                </div>
+                <div class="p-3 bg-white/10 text-white rounded-xl shrink-0">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                </div>
+            </div>
+
+            <!-- In Office Now -->
+            <div class="grad-blue animate-gradient p-5 rounded-2xl text-white shadow-sm hover:shadow-md transition duration-300 flex items-center justify-between">
+                <div>
+                    <span class="text-[10px] sm:text-xs font-bold text-blue-100 uppercase tracking-wider block">In Office Now</span>
+                    <span class="text-2xl sm:text-3xl font-extrabold text-white mt-1 block">{{ $activeClockedIn }}</span>
+                </div>
+                <div class="p-3 bg-white/10 text-white rounded-xl shrink-0">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                </div>
+            </div>
+
+            <!-- Absent / Unlogged -->
+            <div class="grad-purple animate-gradient p-5 rounded-2xl text-white shadow-sm hover:shadow-md transition duration-300 flex items-center justify-between">
+                <div>
+                    <span class="text-[10px] sm:text-xs font-bold text-purple-100 uppercase tracking-wider block">Absent / Unlogged</span>
+                    <span class="text-2xl sm:text-3xl font-extrabold text-white mt-1 block">{{ $absentToday }}</span>
+                </div>
+                <div class="p-3 bg-white/10 text-white rounded-xl shrink-0">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filters Bar & Staff Quick Controls -->
+        <div class="shrink-0 grid grid-cols-1 xl:grid-cols-3 gap-5">
+            <!-- Filter Bar -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 xl:col-span-2">
+                <form method="GET" action="" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Staff Member</label>
+                        <select name="user_id" onchange="this.form.submit()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-xs text-slate-700 cursor-pointer transition">
+                            <option value="">All Employees</option>
+                            @foreach($staffList as $staff)
+                                <option value="{{ $staff->id }}" {{ request('user_id') == $staff->id ? 'selected' : '' }}>{{ $staff->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Start Date</label>
+                        <input type="date" name="start_date" value="{{ $startDate }}" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-xs text-slate-700 cursor-pointer transition">
+                    </div>
+
+                    <div class="flex gap-2">
+                        <div class="flex-1">
+                            <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">End Date</label>
+                            <input type="date" name="end_date" value="{{ $endDate }}" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-xs text-slate-700 cursor-pointer transition">
+                        </div>
+                        <button type="submit" class="p-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition flex items-center justify-center self-end h-10" title="Apply Filter">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+                        </button>
+                        <a href="{{ route('attendance.index') }}" class="p-2.5 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition flex items-center justify-center self-end h-10" title="Reset Filters">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                        </a>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Manual Logging and Quick Settings trigger -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col gap-4">
+                <div>
+                    <h3 class="text-sm font-bold text-slate-800">Manual Actions</h3>
+                    <p class="text-xs text-slate-400 mt-1">Directly log or adjust staff sheets.</p>
+                </div>
+                <div class="flex flex-col gap-2.5 w-full">
+                    <button onclick="toggleModal('manual-modal')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-4 py-3 rounded-xl transition flex items-center justify-center gap-2 whitespace-nowrap w-full">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                        Mark Attendance
+                    </button>
+                    <button onclick="toggleModal('remote-staff-modal')" class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-4 py-3 rounded-xl transition flex items-center justify-center gap-2 whitespace-nowrap w-full">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>
+                        WFH Controls
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        @if(Auth::user()->isAdmin())
+        <!-- PARTNER DASHBOARD & TEAM PERFORMANCE INSIGHTS -->
+        <div class="shrink-0 grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            <!-- Graph Analytics -->
+            <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 lg:col-span-2 flex flex-col h-fit">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100 cursor-pointer select-none min-h-[56px]" onclick="toggleCollapsiblePanel('weekly-performance-content', 'weekly-performance-chevron')">
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider brand-font flex items-center gap-2">
+                            Weekly Performance & Activity Analytics
+                            <svg id="weekly-performance-chevron" class="w-4 h-4 text-slate-400 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                        </h3>
+                        <p class="text-[11px] text-slate-400 font-semibold mt-0.5">Productive hours & daily tasks completed by the team over the past 7 days.</p>
+                    </div>
+                    <span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full text-[10px] font-extrabold flex items-center gap-1 shrink-0">
+                        <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-ping"></span> Live Team Analytics
+                    </span>
+                </div>
+                <div id="weekly-performance-content" class="relative w-full h-[260px] mt-4 hidden">
+                    <canvas id="weeklyPerformanceChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Weekly Office Performance Summaries -->
+            <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 lg:col-span-1 flex flex-col h-fit">
+                <div class="flex items-center justify-between pb-3 border-b border-slate-100 min-h-[56px]">
+                    <div class="flex items-center gap-2 cursor-pointer select-none" onclick="toggleCollapsiblePanel('weekly-summaries-content', 'weekly-summaries-chevron')">
+                        <div>
+                            <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider brand-font flex items-center gap-1.5">
+                                Weekly Summaries
+                                <svg id="weekly-summaries-chevron" class="w-4 h-4 text-slate-400 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                            </h3>
+                            <p class="text-[11px] text-slate-400 font-semibold mt-0.5">Automated team performance & log records.</p>
+                        </div>
+                    </div>
+                    <!-- Manual compile button -->
+                    <button onclick="triggerWeeklyReportGeneration()" id="compileBtn" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 hover:text-indigo-800 rounded-xl px-3 py-1.5 text-xs font-bold transition flex items-center gap-1 shadow-sm shrink-0">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                        Compile
+                    </button>
+                </div>
+
+                <!-- Reports List Container -->
+                <div id="weekly-summaries-content" class="overflow-y-auto mt-4 pr-1 space-y-3 max-h-[260px] hidden">
+                    @forelse($weeklyReports as $wReport)
+                        <div onclick="openWeeklyReportModal('{{ $wReport->id }}')" class="group cursor-pointer p-3 bg-slate-50 hover:bg-indigo-50/70 border border-slate-200/60 hover:border-indigo-200 rounded-2xl transition duration-200 flex items-center justify-between">
+                            <div class="flex items-start gap-3 min-w-0">
+                                <span class="bg-indigo-100 text-indigo-700 p-2.5 rounded-xl group-hover:scale-105 transition shrink-0">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                                </span>
+                                <div class="min-w-0">
+                                    <h4 class="text-xs font-bold text-slate-800 leading-tight truncate">Performance Report</h4>
+                                    <p class="text-[10px] text-slate-400 mt-1 font-semibold truncate">
+                                        {{ \Carbon\Carbon::parse($wReport->week_start_date)->format('M d') }} - {{ \Carbon\Carbon::parse($wReport->week_end_date)->format('M d, Y') }}
+                                    </p>
+                                </div>
+                            </div>
+                            <svg class="w-4 h-4 text-slate-400 group-hover:text-indigo-600 transition shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                        </div>
+                    @empty
+                        <div class="h-[200px] flex flex-col items-center justify-center text-center p-6 text-slate-400 border-2 border-dashed border-slate-100 rounded-2xl">
+                            <svg class="w-10 h-10 text-slate-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" /></svg>
+                            <p class="text-xs font-bold">No reports compiled</p>
+                            <p class="text-[10px] text-slate-400 mt-1">Click Compile to generate.</p>
+                        </div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+
+        <!-- Admin Leave Manager (Tabbed Layout) -->
+        @php
+            $approvedLeaves = collect($leavesHistory)->where('status', 'approved');
+            $rejectedLeaves = collect($leavesHistory)->where('status', 'rejected');
+            $hasPendingLeaves = $pendingLeaves->count() > 0;
+        @endphp
+        <div class="shrink-0 bg-white rounded-3xl border border-slate-200 shadow-sm p-6 mb-6 flex flex-col h-fit">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center pb-4 border-b border-slate-100 gap-4">
+                <div class="flex items-center gap-2 cursor-pointer select-none" onclick="toggleCollapsiblePanel('leave-manager-content', 'leave-manager-chevron')">
+                    <svg class="w-5 h-5 text-indigo-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 00-2 2z" /></svg>
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider brand-font flex items-center gap-1.5">
+                            Leave Requests Manager
+                            <svg id="leave-manager-chevron" class="w-4 h-4 text-slate-400 transition-transform duration-300 {{ $hasPendingLeaves ? 'rotate-180' : '' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
+                        </h3>
+                        <p class="text-[11px] text-slate-400 font-semibold mt-0.5">Manage and review employee leaves. Approved leaves are synchronized with attendance logs.</p>
+                    </div>
+                </div>
+                
+                <!-- Tabs Nav -->
+                <div class="flex bg-slate-100 p-1 rounded-xl shrink-0 self-end sm:self-auto">
+                    <button onclick="switchLeaveTab('pending-leaves-tab')" id="pending-leaves-tab-btn" class="leave-tab-btn px-4 py-1.5 rounded-lg text-xs font-bold transition-all bg-white text-indigo-600 shadow-sm">
+                        Pending ({{ $pendingLeaves->count() }})
+                    </button>
+                    <button onclick="switchLeaveTab('approved-leaves-tab')" id="approved-leaves-tab-btn" class="leave-tab-btn px-4 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900">
+                        Approved ({{ $approvedLeaves->count() }})
+                    </button>
+                    <button onclick="switchLeaveTab('rejected-leaves-tab')" id="rejected-leaves-tab-btn" class="leave-tab-btn px-4 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900">
+                        Rejected ({{ $rejectedLeaves->count() }})
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tab Contents -->
+            <div id="leave-manager-content" class="flex-1 overflow-y-auto mt-4 pr-1 max-h-[280px] {{ $hasPendingLeaves ? '' : 'hidden' }}">
+                <!-- Tab 1: Pending Leaves -->
+                <div id="pending-leaves-tab" class="leave-tab-content space-y-3">
+                    @forelse($pendingLeaves as $pLeave)
+                        <div class="p-4 bg-slate-50 border border-slate-200/60 rounded-2xl flex flex-col gap-3">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h4 class="text-xs font-bold text-slate-800">{{ $pLeave->user->name }}</h4>
+                                    <p class="text-[10px] text-slate-400 font-semibold mt-0.5">{{ $pLeave->user->email }}</p>
+                                </div>
+                                <span class="px-2 py-0.5 bg-amber-50 border border-amber-200 text-amber-700 rounded text-[9px] font-extrabold uppercase tracking-wide">
+                                    Pending
+                                </span>
+                            </div>
+                            
+                            <div class="bg-white p-2.5 rounded-xl border border-slate-100 text-[11px] text-slate-600 font-medium">
+                                <div class="flex items-center gap-1.5 mb-1.5 text-indigo-900 font-bold">
+                                    <svg class="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 00-2 2z" /></svg>
+                                    Duration: {{ $pLeave->start_date->format('d M') }} - {{ $pLeave->end_date->format('d M, Y') }}
+                                </div>
+                                <div class="italic">"{{ $pLeave->reason }}"</div>
+                            </div>
+
+                            <div class="flex items-center gap-2 self-end">
+                                <!-- Approve Form -->
+                                <form action="{{ route('admin.leave.approve', $pLeave->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to approve this leave request? Corresponding attendance logs will be automatically populated.');">
+                                    @csrf
+                                    <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] px-3.5 py-1.5 rounded-lg transition shadow-sm">
+                                        Approve
+                                    </button>
+                                </form>
+                                <!-- Reject Action -->
+                                <button type="button" onclick="openRejectLeaveModal({{ $pLeave->id }}, '{{ addslashes($pLeave->user->name) }}')" class="bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-[10px] px-3.5 py-1.5 rounded-lg transition border border-rose-200/50">
+                                    Reject
+                                </button>
+                            </div>
+                        </div>
+                    @empty
+                        <div class="h-[200px] flex flex-col items-center justify-center text-center p-6 text-slate-400 border-2 border-dashed border-slate-100 rounded-2xl">
+                            <svg class="w-10 h-10 text-slate-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <p class="text-xs font-bold">No pending leaves</p>
+                            <p class="text-[10px] text-slate-400 mt-1">Excellent! All pending requests have been processed.</p>
+                        </div>
+                    @endforelse
+                </div>
+
+                <!-- Tab 2: Approved Leaves -->
+                <div id="approved-leaves-tab" class="leave-tab-content hidden space-y-3">
+                    @forelse($approvedLeaves as $aLeave)
+                        <div class="p-4 bg-slate-50 border border-slate-200/60 rounded-2xl flex flex-col gap-2">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h4 class="text-xs font-bold text-slate-800">{{ $aLeave->user->name }}</h4>
+                                    <p class="text-[9px] text-slate-400 mt-0.5">{{ $aLeave->user->email }}</p>
+                                </div>
+                                <span class="px-2 py-0.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded text-[9px] font-extrabold uppercase tracking-wide">
+                                    Approved
+                                </span>
+                            </div>
+                            <div class="bg-white p-2.5 rounded-xl border border-slate-100 text-[11px] text-slate-600 font-medium">
+                                <div class="flex items-center gap-1.5 mb-1.5 text-indigo-900 font-bold">
+                                    <svg class="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 00-2 2z" /></svg>
+                                    Duration: {{ $aLeave->start_date->format('d M') }} - {{ $aLeave->end_date->format('d M, Y') }}
+                                </div>
+                                <div class="italic">"{{ $aLeave->reason }}"</div>
+                            </div>
+                            <div class="text-[9px] text-slate-400 font-semibold flex items-center gap-1 mt-1">
+                                <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                Approved by {{ $aLeave->approver->name ?? 'System' }} on {{ $aLeave->approved_at ? $aLeave->approved_at->format('d M Y h:i A') : '' }}
+                            </div>
+                        </div>
+                    @empty
+                        <div class="h-[200px] flex flex-col items-center justify-center text-center p-6 text-slate-400 border-2 border-dashed border-slate-100 rounded-2xl">
+                            <svg class="w-10 h-10 text-slate-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <p class="text-xs font-bold">No approved leaves</p>
+                            <p class="text-[10px] text-slate-400 mt-1">Approved requests will show up here.</p>
+                        </div>
+                    @endforelse
+                </div>
+
+                <!-- Tab 3: Rejected Leaves -->
+                <div id="rejected-leaves-tab" class="leave-tab-content hidden space-y-3">
+                    @forelse($rejectedLeaves as $rLeave)
+                        <div class="p-4 bg-slate-50 border border-slate-200/60 rounded-2xl flex flex-col gap-2">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h4 class="text-xs font-bold text-slate-800">{{ $rLeave->user->name }}</h4>
+                                    <p class="text-[9px] text-slate-400 mt-0.5">{{ $rLeave->user->email }}</p>
+                                </div>
+                                <span class="px-2 py-0.5 bg-rose-50 border border-rose-200 text-rose-700 rounded text-[9px] font-extrabold uppercase tracking-wide">
+                                    Rejected
+                                </span>
+                            </div>
+                            <div class="bg-white p-2.5 rounded-xl border border-slate-100 text-[11px] text-slate-600 font-medium">
+                                <div class="flex items-center gap-1.5 mb-1.5 text-rose-900 font-bold">
+                                    <svg class="w-3.5 h-3.5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 00-2 2z" /></svg>
+                                    Duration: {{ $rLeave->start_date->format('d M') }} - {{ $rLeave->end_date->format('d M, Y') }}
+                                </div>
+                                <div class="italic">"{{ $rLeave->reason }}"</div>
+                            </div>
+                            @if($rLeave->rejection_reason)
+                                <div class="bg-rose-50/50 p-2 rounded-xl border border-rose-100/50 text-[10px] text-rose-800 font-medium">
+                                    <span class="font-bold">Rejection Reason:</span> {{ $rLeave->rejection_reason }}
+                                </div>
+                            @endif
+                            <div class="text-[9px] text-slate-400 font-semibold flex items-center gap-1 mt-1">
+                                <svg class="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                                Rejected by {{ $rLeave->approver->name ?? 'System' }} on {{ $rLeave->approved_at ? $rLeave->approved_at->format('d M Y h:i A') : '' }}
+                            </div>
+                        </div>
+                    @empty
+                        <div class="h-[200px] flex flex-col items-center justify-center text-center p-6 text-slate-400 border-2 border-dashed border-slate-100 rounded-2xl">
+                            <svg class="w-10 h-10 text-slate-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <p class="text-xs font-bold">No rejected leaves</p>
+                            <p class="text-[10px] text-slate-400 mt-1">Rejected requests will show up here.</p>
+                        </div>
+                    @endforelse
+                </div>
+            </div>
+        </div>
+        @endif
+
+        <!-- Attendance Logs Accordions -->
+        <div class="flex-1 min-h-0 flex flex-col overflow-y-auto pt-0.5 gap-4">
+            @php
+                $groupedLogs = $logs->groupBy(function($log) {
+                    return $log->date->toDateString();
+                });
+                $isFirstAccordion = true;
+            @endphp
+
+            @forelse($groupedLogs as $dateStr => $dateLogs)
+                 @php
+                    $carbonDate = \Carbon\Carbon::parse($dateStr);
+                    $presentCount = $dateLogs->whereIn('status', ['present', 'grace', 'late', 'half_day'])->count();
+                    $lateCount = $dateLogs->where('status', 'late')->count();
+                    $halfDayCount = $dateLogs->where('status', 'half_day')->count();
+                    $absentCount = $dateLogs->where('status', 'absent')->count();
+                    $hDay = $holidaysList->first(fn($h) => $h->date->toDateString() === $dateStr);
+                @endphp
+
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition duration-300 hover:shadow-md">
+                    <!-- Accordion Header -->
+                    <div onclick="toggleAccordion('date-group-{{ $dateStr }}')" class="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-slate-50/60 hover:bg-slate-50 cursor-pointer select-none gap-3 border-b border-slate-100">
+                        <div class="flex items-center gap-3">
+                            <!-- Chevron Icon -->
+                            <svg id="chevron-{{ $dateStr }}" class="w-5 h-5 text-slate-400 transform transition-transform duration-300 {{ $isFirstAccordion ? 'rotate-180' : '' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                            <!-- Date Info -->
+                            <div>
+                                <span class="text-sm font-extrabold text-slate-800">{{ $carbonDate->format('d M, Y') }}</span>
+                                <span class="inline-block ml-2 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-indigo-50 text-indigo-700">{{ $carbonDate->format('l') }}</span>
+                                @if($hDay)
+                                    <span class="inline-block ml-2 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-indigo-100 text-indigo-700">🎉 Holiday: {{ $hDay->reason }}</span>
+                                @endif
+                            </div>
+                        </div>
+                        
+                        <!-- Quick Badges -->
+                        <div class="flex flex-wrap items-center gap-2">
+                            @if($presentCount > 0)
+                                <span class="px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-wide bg-emerald-50 text-emerald-800 border border-emerald-200/20">Present: {{ $presentCount }}</span>
+                            @endif
+                            @if($lateCount > 0)
+                                <span class="px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-wide bg-amber-50 text-amber-800 border border-amber-200/20">Late: {{ $lateCount }}</span>
+                            @endif
+                            @if($halfDayCount > 0)
+                                <span class="px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-wide bg-purple-50 text-purple-700 border border-purple-200/20">Half Day: {{ $halfDayCount }}</span>
+                            @endif
+                            @if($absentCount > 0)
+                                <span class="px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-wide bg-rose-50 text-rose-800 border border-rose-200/20">Absent: {{ $absentCount }}</span>
+                            @endif
+                        </div>
+                    </div>
+
+                    <!-- Accordion Content (Table list of logs for this date) -->
+                    <div id="date-group-{{ $dateStr }}" class="transition-all duration-300 {{ $isFirstAccordion ? '' : 'hidden' }}">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm text-left text-slate-500 border-collapse">
+                                <thead class="text-xs text-slate-700 uppercase bg-slate-100/50 border-b border-slate-200">
+                                    <tr>
+                                        <th class="px-6 py-3">Employee</th>
+                                        <th class="px-6 py-3">Clock In</th>
+                                        <th class="px-6 py-3">Clock Out</th>
+                                        <th class="px-6 py-3 text-center">Lunch</th>
+                                        <th class="px-6 py-3 text-center">Worked Hours</th>
+                                        <th class="px-6 py-3 text-center">Status</th>
+                                        <th class="px-6 py-3 text-center">Selfie Proof</th>
+                                        <th class="px-6 py-3">Daily Work-Logs & Remarks</th>
+                                        <th class="px-6 py-3 text-center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100 text-slate-600">
+                                    @foreach($dateLogs as $log)
+                                    <tr class="bg-white hover:bg-slate-50/80 transition">
+                                        <td class="px-6 py-4 font-semibold text-slate-900 whitespace-nowrap">
+                                            {{ $log->user->name ?? 'Deleted Staff' }}
+                                            <span class="block text-xs text-slate-400 font-normal mt-0.5">{{ $log->user->email ?? '' }}</span>
+                                        </td>
+                                        <td class="px-6 py-4 font-semibold text-slate-600">
+                                            @if($log->status === 'absent' || $log->status === 'leave')
+                                                <span class="text-slate-300 font-medium">-</span>
+                                            @else
+                                                <span class="flex items-center gap-2 whitespace-nowrap">
+                                                    <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                                    {{ $log->clock_in->format('h:i A') }}
+                                                </span>
+                                                @if($log->clock_in_ip)
+                                                <span class="block text-[10px] text-slate-400 font-mono mt-0.5 max-w-[120px] break-all whitespace-normal">IP: {{ $log->clock_in_ip }}</span>
+                                                @endif
+                                            @endif
+                                        </td>
+                                        <td class="px-6 py-4 font-semibold text-slate-600">
+                                            @if($log->status === 'absent' || $log->status === 'leave')
+                                                <span class="text-slate-300 font-medium">-</span>
+                                            @elseif($log->clock_out)
+                                                <span class="flex items-center gap-2 whitespace-nowrap">
+                                                    <span class="w-2 h-2 rounded-full bg-rose-500"></span>
+                                                    {{ $log->clock_out->format('h:i A') }}
+                                                </span>
+                                                @if($log->clock_out_ip)
+                                                <span class="block text-[10px] text-slate-400 font-mono mt-0.5 max-w-[120px] break-all whitespace-normal">IP: {{ $log->clock_out_ip }}</span>
+                                                @endif
+                                            @else
+                                                <span class="text-slate-300 italic font-medium whitespace-nowrap">Active (Checked In)</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-6 py-4 text-center whitespace-nowrap font-medium text-slate-600">
+                                            @if($log->lunch_start && $log->lunch_end)
+                                                @php
+                                                    $dur = round(($log->lunch_duration ?? 0) * 60);
+                                                @endphp
+                                                <span class="px-2 py-1 bg-amber-50 text-amber-700 rounded-lg text-xs font-semibold">{{ $dur }} mins</span>
+                                            @elseif($log->lunch_start)
+                                                <span class="px-2 py-1 bg-amber-100 text-amber-800 rounded-lg text-xs font-bold animate-pulse">On Lunch</span>
+                                            @else
+                                                <span class="text-slate-400 font-mono text-xs">-</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-6 py-4 text-center font-bold text-slate-900 whitespace-nowrap">
+                                            @if($log->clock_out && $log->total_hours)
+                                                @php
+                                                    $totalMinutes = round($log->total_hours * 60);
+                                                    $hrs = floor($totalMinutes / 60);
+                                                    $mins = $totalMinutes % 60;
+                                                    $formattedWorkedHours = $hrs > 0 && $mins > 0 ? "{$hrs} hrs {$mins} min" : ($hrs > 0 ? "{$hrs} hrs" : "{$mins} min");
+                                                @endphp
+                                                <div class="flex flex-col items-center gap-1">
+                                                    <span class="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-lg text-xs">{{ $formattedWorkedHours }}</span>
+                                                    @if($log->overtime_hours > 0)
+                                                        @php
+                                                            $otMinutes = round($log->overtime_hours * 60);
+                                                            $otHrs = floor($otMinutes / 60);
+                                                            $otMins = $otMinutes % 60;
+                                                            $formattedOT = $otHrs > 0 && $otMins > 0 ? "{$otHrs}h {$otMins}m" : ($otHrs > 0 ? "{$otHrs}h" : "{$otMins}m");
+                                                        @endphp
+                                                        <span class="px-2 py-0.5 bg-purple-50 text-purple-700 border border-purple-200/30 rounded text-[10px] font-extrabold uppercase tracking-wide" title="Comp-Off hours logged">Comp-Off: +{{ $formattedOT }}</span>
+                                                    @endif
+                                                </div>
+                                            @else
+                                                <span class="text-slate-300">-</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-6 py-4 text-center whitespace-nowrap">
+                                            @if($log->status === 'present')
+                                                <span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-emerald-100 text-emerald-800">Present</span>
+                                            @elseif($log->status === 'grace')
+                                                <span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-sky-100 text-sky-800">Grace Period</span>
+                                            @elseif($log->status === 'late')
+                                                <span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-amber-100 text-amber-800">Late Checkin</span>
+                                            @elseif($log->status === 'half_day')
+                                                <span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-purple-100 text-purple-800">Half Day</span>
+                                            @elseif($log->status === 'absent')
+                                                <span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-rose-100 text-rose-800">Absent</span>
+                                            @elseif($log->status === 'leave')
+                                                <span class="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-blue-100 text-blue-800">Approved Leave</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-6 py-4 text-center">
+                                            @if($log->selfie_url)
+                                            <button onclick="openImageModal('{{ $log->selfie_url }}')" class="focus:outline-none inline-block">
+                                                <img src="{{ $log->selfie_url }}" class="w-10 h-10 rounded-full object-cover border border-slate-200 hover:scale-115 transition shadow-sm" alt="Selfie Verification">
+                                            </button>
+                                            @else
+                                            <span class="text-slate-300 text-xs italic">No photo</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-6 py-4 max-w-xs text-xs text-slate-600 leading-relaxed">
+                                            @if($log->work_log)
+                                                <div class="mb-2 bg-indigo-50/30 rounded-xl p-3 border border-indigo-100/50">
+                                                    <span class="font-bold text-indigo-900 block mb-1.5 flex items-center gap-1 text-[11px] uppercase tracking-wider">
+                                                        <svg class="w-3.5 h-3.5 text-indigo-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" /></svg>
+                                                        Daily Work-Log
+                                                    </span>
+                                                    <ul class="space-y-1 text-[11px] text-slate-700 leading-relaxed font-medium pl-1">
+                                                        @foreach(explode("\n", $log->work_log) as $line)
+                                                            @php 
+                                                                $trimmedLine = trim($line);
+                                                                if(str_starts_with($trimmedLine, '•')) {
+                                                                    $trimmedLine = trim(mb_substr($trimmedLine, 1));
+                                                                }
+                                                            @endphp
+                                                            @if($trimmedLine)
+                                                                <li class="flex items-start gap-1.5">
+                                                                    <span class="text-indigo-500 font-extrabold select-none mt-0.5">•</span>
+                                                                    <span>{{ $trimmedLine }}</span>
+                                                                </li>
+                                                            @endif
+                                                        @endforeach
+                                                    </ul>
+                                                </div>
+                                            @endif
+                                            @if($log->notes)
+                                                <div class="mb-1"><span class="font-bold text-slate-800">Staff Note:</span> {{ $log->notes }}</div>
+                                            @endif
+                                            @if($log->admin_remarks)
+                                                <div><span class="font-bold text-indigo-600">Admin Remark:</span> {{ $log->admin_remarks }}</div>
+                                            @endif
+                                            @if(!$log->work_log && !$log->notes && !$log->admin_remarks)
+                                                <span class="text-slate-300 italic">No logs or notes</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-6 py-4 text-center whitespace-nowrap">
+                                            <div class="flex items-center justify-center gap-2">
+                                                <!-- Edit Trigger -->
+                                                <button onclick="openEditModal({
+                                                    id: {{ $log->id }},
+                                                    staff_name: '{{ addslashes($log->user->name ?? 'Deleted Staff') }}',
+                                                    date_formatted: '{{ $log->date->format('d M, Y') }}',
+                                                    clock_in: '{{ $log->clock_in->format('H:i') }}',
+                                                    clock_out: '{{ $log->clock_out ? $log->clock_out->format('H:i') : '' }}',
+                                                    status: '{{ $log->status }}',
+                                                    admin_remarks: '{{ addslashes($log->admin_remarks ?? '') }}'
+                                                })" class="p-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition" title="Edit Log">
+                                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                                </button>
+                                                <!-- Delete Form Trigger -->
+                                                <form action="{{ route('attendance.destroy', $log->id) }}" method="POST" onsubmit="return confirm('WARNING: Are you absolutely sure you want to permanently delete this attendance record? This will delete the selfie snapshot as well.');" class="inline">
+                                                    @csrf
+                                                    @method('DELETE')
+                                                    <button type="submit" class="p-2 bg-rose-50 text-rose-600 hover:bg-rose-100 rounded-lg transition" title="Delete Log">
+                                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                @php
+                    $isFirstAccordion = false;
+                @endphp
+            @empty
+                <div class="px-6 py-16 text-center text-slate-400 font-semibold italic bg-white border border-slate-200 rounded-2xl">
+                    No attendance records found matching the filters.
+                </div>
+            @endforelse
+
+            <!-- Pagination -->
+            <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex-shrink-0">
+                {{ $logs->links() }}
+            </div>
+        </div>
+
+    @else
+        <!-- ========================================================
+             STAFF VIEW
+             ======================================================== -->
+        <div class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
+            <!-- LEFT PANEL: Dynamic clock widget & Checkin trigger -->
+            <div class="lg:col-span-5 flex flex-col gap-5 min-h-0">
+                <!-- Glowing digital clock -->
+                <div id="live-clock-container" data-server-time="{{ now()->timestamp * 1000 }}" class="gradient-flow p-6 rounded-2xl text-white text-center shadow-lg shrink-0 flex flex-col items-center justify-center relative overflow-hidden">
+                    <div class="absolute inset-0 bg-black/10"></div>
+                    <span id="live-date" class="text-xs sm:text-sm font-bold uppercase tracking-wider relative z-10 opacity-90 mb-1">-</span>
+                    <span id="live-time" class="text-4xl sm:text-5xl font-extrabold font-mono tracking-tight relative z-10 block my-1">00:00:00 AM</span>
+                    <span class="text-[10px] sm:text-xs font-semibold relative z-10 bg-white/20 px-3 py-1 rounded-full backdrop-blur-md opacity-80">Live Portal Clock</span>
+                </div>
+
+                <!-- Clock-In Action panel -->
+                <div class="bg-white border border-slate-200 rounded-2xl shadow-sm p-6 flex-1 flex flex-col justify-center items-center">
+                    @if(!$todayLog)
+                        <!-- NOT CLOCKED IN STATE -->
+                        <div class="text-center w-full">
+                            <div class="w-16 h-16 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+                                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            </div>
+                            <h2 class="text-lg font-extrabold text-slate-800">You are not clocked-in today.</h2>
+                            <p class="text-slate-400 text-xs mt-1 max-w-sm mx-auto">Click below to authorize camera access, capture a selfie, and mark your daily entry.</p>
+
+                            <!-- Clock-In Form -->
+                            <form id="clock-in-form" action="{{ route('attendance.clock_in') }}" method="POST" class="mt-6 max-w-sm mx-auto">
+                                @csrf
+                                <input type="hidden" name="latitude" id="latitude-input">
+                                <input type="hidden" name="longitude" id="longitude-input">
+                                <input type="hidden" name="selfie" id="selfie-input">
+
+                                <div class="mb-4 text-left">
+                                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Shift Remarks / Late Notes (Optional)</label>
+                                    <textarea name="notes" placeholder="e.g. Traffic block, visiting client location, or standard check-in..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-xs text-slate-700 resize-none h-16"></textarea>
+                                </div>
+
+                                <button type="button" onclick="triggerClockIn()" class="w-full btn-moving-gradient text-white text-xs sm:text-sm font-bold py-3.5 px-5 rounded-xl transition duration-200 transform hover:scale-103 shadow-md flex items-center justify-center gap-2">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                    Open Cam & Clock In
+                                </button>
+                            </form>
+                        </div>
+                    @elseif($todayLog && !$todayLog->clock_out)
+                        <!-- CLOCKED IN STATE, AWAITING CLOCK OUT / LUNCH BREAKS -->
+                        <div class="text-center w-full">
+                            <div class="w-20 h-20 rounded-full overflow-hidden mx-auto border-4 border-emerald-500 shadow-md mb-4 camera-pulse">
+                                <img src="{{ $todayLog->selfie_url }}" class="w-full h-full object-cover" alt="Checkin Snapshot">
+                            </div>
+                            
+                            @if(!$todayLog->lunch_start)
+                                <!-- SUB-STATE A: ACTIVE DUTY, BEFORE LUNCH -->
+                                <h2 class="text-lg font-extrabold text-emerald-600">Active Duty</h2>
+                                <p class="text-slate-500 text-xs mt-1 font-semibold">Today's Start: <span class="text-slate-800 font-bold">{{ $todayLog->clock_in->format('h:i A') }}</span></p>
+                                
+                                @if($todayLog->status === 'late')
+                                    <span class="inline-block mt-2 px-3 py-1 bg-amber-100 text-amber-800 text-[10px] font-bold uppercase rounded-full">Late Entry Check</span>
+                                @else
+                                    <span class="inline-block mt-2 px-3 py-1 bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase rounded-full">Ontime Entry</span>
+                                @endif
+
+                                <div class="mt-8 flex flex-col sm:flex-row gap-3 max-w-sm mx-auto">
+                                    <!-- Start Lunch Button -->
+                                    <form action="{{ route('attendance.start_lunch') }}" method="POST" class="flex-1">
+                                        @csrf
+                                        <button type="submit" class="w-full bg-amber-500 hover:bg-amber-600 text-white text-xs sm:text-sm font-bold py-3.5 px-4 rounded-xl transition duration-200 transform hover:scale-103 shadow-md flex items-center justify-center gap-2">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m12.728 12.728l.707.707M12 8a4 4 0 100 8 4 4 0 000-8z" />
+                                            </svg>
+                                            Start Lunch Break
+                                        </button>
+                                    </form>
+
+                                    <!-- Clock Out Button -->
+                                    <button type="button" onclick="openClockOutModal()" class="w-full bg-rose-600 hover:bg-rose-700 text-white text-xs sm:text-sm font-bold py-3.5 px-4 rounded-xl transition duration-200 transform hover:scale-103 shadow-md flex items-center justify-center gap-2 flex-1">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                        </svg>
+                                        Clock Out
+                                    </button>
+                                </div>
+
+                            @elseif($todayLog->lunch_start && !$todayLog->lunch_end)
+                                <!-- SUB-STATE B: ON LUNCH BREAK -->
+                                <h2 class="text-lg font-extrabold text-amber-600">Lunch Break in Progress</h2>
+                                <p class="text-slate-500 text-xs mt-1 font-semibold">Break Started: <span class="text-slate-800 font-bold">{{ \Carbon\Carbon::parse($todayLog->lunch_start)->format('h:i A') }}</span></p>
+                                
+                                <span class="inline-block mt-2 px-3 py-1 bg-amber-100 text-amber-800 text-[10px] font-bold uppercase rounded-full">Out of Office</span>
+
+                                <div class="mt-8 max-w-sm mx-auto">
+                                    <!-- End Lunch Button -->
+                                    <form action="{{ route('attendance.end_lunch') }}" method="POST" class="w-full">
+                                        @csrf
+                                        <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold py-3.5 px-5 rounded-xl transition duration-200 transform hover:scale-103 shadow-md flex items-center justify-center gap-2">
+                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                            End Lunch Break
+                                        </button>
+                                    </form>
+                                </div>
+
+                            @else
+                                <!-- SUB-STATE C: ACTIVE DUTY, RETURNED FROM LUNCH -->
+                                <h2 class="text-lg font-extrabold text-emerald-600">Active Duty</h2>
+                                <p class="text-slate-500 text-xs mt-1 font-semibold">Today's Start: <span class="text-slate-800 font-bold">{{ $todayLog->clock_in->format('h:i A') }}</span></p>
+                                
+                                @php
+                                    $lunchDurationMin = round(($todayLog->lunch_duration ?? 0) * 60);
+                                    $lunchDurationStr = $lunchDurationMin >= 60 
+                                        ? floor($lunchDurationMin / 60) . 'h ' . ($lunchDurationMin % 60) . 'm'
+                                        : $lunchDurationMin . ' mins';
+                                @endphp
+                                <span class="inline-block mt-2 px-3 py-1 bg-indigo-100 text-indigo-800 text-[10px] font-bold uppercase rounded-full">Returned from Lunch (Break: {{ $lunchDurationStr }})</span>
+
+                                <div class="mt-8 max-w-sm mx-auto">
+                                    <!-- Clock Out Button -->
+                                    <button type="button" onclick="openClockOutModal()" class="w-full bg-rose-600 hover:bg-rose-700 text-white text-xs sm:text-sm font-bold py-3.5 px-5 rounded-xl transition duration-200 transform hover:scale-103 shadow-md flex items-center justify-center gap-2">
+                                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                        </svg>
+                                        Clock Out
+                                    </button>
+                                </div>
+                            @endif
+                        </div>
+                    @else
+                        <!-- COMPLETED STATE -->
+                        <div class="text-center w-full">
+                            <div class="w-16 h-16 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                            </div>
+                            <h2 class="text-lg font-extrabold text-slate-800">Shift Completed Today!</h2>
+                            <p class="text-slate-400 text-xs mt-1">Excellent work today! You have checked out successfully.</p>
+                            
+                            <div class="bg-slate-50 border border-slate-100 p-4 rounded-2xl mt-6 max-w-xs mx-auto flex justify-between text-xs font-semibold text-slate-600">
+                                <div>
+                                    <span class="block text-slate-400 text-[10px] uppercase">Start</span>
+                                    <span class="text-slate-800 font-bold mt-1 block">{{ $todayLog->clock_in->format('h:i A') }}</span>
+                                </div>
+                                <div class="border-r border-slate-200"></div>
+                                <div>
+                                    <span class="block text-slate-400 text-[10px] uppercase">Lunch Duration</span>
+                                    @php
+                                        $lunchDurMin = round(($todayLog->lunch_duration ?? 0) * 60);
+                                        $lunchDurStr = $lunchDurMin > 0 ? $lunchDurMin . ' mins' : 'None';
+                                    @endphp
+                                    <span class="text-slate-800 font-bold mt-1 block">{{ $lunchDurStr }}</span>
+                                </div>
+                                <div class="border-r border-slate-200"></div>
+                                <div>
+                                    <span class="block text-slate-400 text-[10px] uppercase">End</span>
+                                    <span class="text-slate-800 font-bold mt-1 block">{{ $todayLog->clock_out->format('h:i A') }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
+                </div>
+            </div>
+
+            <!-- RIGHT PANEL: Current month statistics and history sheet -->
+            <div class="lg:col-span-7 flex flex-col gap-5 min-h-0">
+                <!-- Statistics Blocks -->
+                <div class="shrink-0 grid grid-cols-3 gap-3">
+                    <div class="bg-white border border-slate-200 p-3.5 rounded-xl text-center shadow-sm">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Present</span>
+                        <span class="text-lg font-extrabold text-emerald-600 mt-1 block">{{ $totalPresent }}d</span>
+                    </div>
+                    <div class="bg-white border border-slate-200 p-3.5 rounded-xl text-center shadow-sm">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Late Days</span>
+                        <span class="text-lg font-extrabold text-amber-600 mt-1 block">{{ $totalLate }}d</span>
+                    </div>
+                    <div class="bg-white border border-slate-200 p-3.5 rounded-xl text-center shadow-sm">
+                        <span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Half Days</span>
+                        <span class="text-lg font-extrabold text-purple-600 mt-1 block">{{ $totalHalfDay }}d</span>
+                    </div>
+                </div>
+
+                <!-- Personal Historical Log List -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow flex-1 min-h-0 flex flex-col overflow-hidden pt-0.5">
+                    <div class="p-4 border-b border-slate-100 flex items-center justify-between shrink-0">
+                        <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>
+                            Your Monthly Log - {{ Carbon\Carbon::now()->format('F Y') }}
+                        </h3>
+                    </div>
+
+                    <div class="overflow-x-auto overflow-y-auto flex-1">
+                        <table class="w-full text-sm text-left text-slate-500 border-collapse">
+                            <thead class="text-xs text-slate-700 uppercase table-header-gradient border-b border-slate-200 sticky top-0 z-10 shadow-sm">
+                                <tr>
+                                    <th class="px-5 py-3.5">Date</th>
+                                    <th class="px-5 py-3.5">Clock In</th>
+                                    <th class="px-5 py-3.5 text-center">Lunch Break</th>
+                                    <th class="px-5 py-3.5">Clock Out</th>
+                                    <th class="px-5 py-3.5 text-center">Status</th>
+                                    <th class="px-5 py-3.5">Your Remarks</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 text-slate-600">
+                                @forelse($monthlyDates as $date)
+                                    @php
+                                        $log = $monthlyLogs->first(fn($l) => $l->date->toDateString() === $date->toDateString());
+                                        $isSunday = $date->isSunday();
+                                        $holiday = $holidaysList->first(fn($h) => $h->date->toDateString() === $date->toDateString());
+                                    @endphp
+                                    <tr class="bg-white hover:bg-slate-50/80 transition">
+                                        <td class="px-5 py-3.5 font-semibold text-slate-700">
+                                            {{ $date->format('d M, Y') }}
+                                            <span class="block text-[10px] text-slate-400 font-normal mt-0.5">{{ $date->format('l') }}</span>
+                                        </td>
+                                        @if($log)
+                                            <td class="px-5 py-3.5 font-medium text-slate-600">
+                                                @if($log->status === 'absent' || $log->status === 'leave')
+                                                    -
+                                                @else
+                                                    {{ $log->clock_in->format('h:i A') }}
+                                                @endif
+                                            </td>
+                                            <td class="px-5 py-3.5 text-center font-medium text-slate-600">
+                                                @if($log->status === 'absent' || $log->status === 'leave')
+                                                    -
+                                                @elseif($log->lunch_start && $log->lunch_end)
+                                                    @php
+                                                        $dur = round(($log->lunch_duration ?? 0) * 60);
+                                                        echo $dur . ' mins';
+                                                    @endphp
+                                                @elseif($log->lunch_start)
+                                                    <span class="text-amber-500 font-semibold animate-pulse">On Lunch</span>
+                                                @else
+                                                    -
+                                                @endif
+                                            </td>
+                                            <td class="px-5 py-3.5 font-medium text-slate-600">
+                                                @if($log->status === 'absent' || $log->status === 'leave')
+                                                    -
+                                                @elseif($log->clock_out)
+                                                    {{ $log->clock_out->format('h:i A') }}
+                                                @else
+                                                    Awaiting clockout
+                                                @endif
+                                            </td>
+                                            <td class="px-5 py-3.5 text-center whitespace-nowrap">
+                                                @if($log->status === 'present')
+                                                    <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-emerald-50 text-emerald-700">Present</span>
+                                                @elseif($log->status === 'grace')
+                                                    <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-sky-50 text-sky-700">Grace</span>
+                                                @elseif($log->status === 'late')
+                                                    <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-amber-50 text-amber-700">Late</span>
+                                                @elseif($log->status === 'half_day')
+                                                    <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-purple-50 text-purple-700">Half Day</span>
+                                                @elseif($log->status === 'absent')
+                                                    <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-rose-50 text-rose-700">Absent</span>
+                                                @elseif($log->status === 'leave')
+                                                    <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-blue-50 text-blue-700">Leave</span>
+                                                @endif
+                                            </td>
+                                            <td class="px-5 py-3.5 text-xs max-w-xxs truncate" title="{{ $log->notes }}">
+                                                {{ $log->notes ?: '-' }}
+                                                @if($log->admin_remarks)
+                                                    <span class="block text-[10px] text-indigo-500 font-bold mt-0.5">Admin: {{ $log->admin_remarks }}</span>
+                                                @endif
+                                            </td>
+                                        @elseif($isSunday)
+                                            <!-- Sunday Display -->
+                                            <td colspan="3" class="px-5 py-3.5 text-center font-bold text-slate-400 uppercase tracking-widest text-[10px] sm:text-xs bg-slate-50/50">
+                                                ☀️ Sunday (Weekly Off)
+                                            </td>
+                                            <td class="px-5 py-3.5 text-center">
+                                                <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-slate-100 text-slate-500">Sunday</span>
+                                            </td>
+                                            <td class="px-5 py-3.5 text-xs text-slate-400 italic">
+                                                Weekly Off
+                                            </td>
+                                        @elseif($holiday)
+                                            <!-- Holiday Display -->
+                                            <td colspan="3" class="px-5 py-3.5 text-center font-bold text-indigo-400 uppercase tracking-wider text-[10px] sm:text-xs bg-indigo-50/20">
+                                                🎉 Holiday: {{ $holiday->reason }}
+                                            </td>
+                                            <td class="px-5 py-3.5 text-center">
+                                                <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-indigo-100 text-indigo-700">Holiday</span>
+                                            </td>
+                                            <td class="px-5 py-3.5 text-xs text-indigo-500 font-semibold">
+                                                {{ $holiday->reason }}
+                                            </td>
+                                        @else
+                                            <!-- Absent/Unlogged Display -->
+                                            <td class="px-5 py-3.5 text-slate-300">-</td>
+                                            <td class="px-5 py-3.5 text-center text-slate-300">-</td>
+                                            <td class="px-5 py-3.5 text-slate-300">-</td>
+                                            <td class="px-5 py-3.5 text-center">
+                                                @if($date->toDateString() === now()->toDateString())
+                                                    <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-slate-100 text-slate-400">Not Clocked In</span>
+                                                @else
+                                                    <span class="px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase bg-rose-50 text-rose-600">Absent</span>
+                                                @endif
+                                            </td>
+                                            <td class="px-5 py-3.5 text-xs text-slate-300 italic">
+                                                @if($date->toDateString() === now()->toDateString())
+                                                    Today
+                                                @else
+                                                    No log recorded
+                                                @endif
+                                            </td>
+                                        @endif
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="6" class="px-5 py-12 text-center text-slate-400 font-semibold italic">
+                                            No dates generated.
+                                        </td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Staff Leave Requests Section -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow p-5 flex flex-col gap-4">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-100 pb-3 gap-2">
+                        <div>
+                            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                <span class="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>
+                                Leave Request System
+                            </h3>
+                            <p class="text-[11px] text-slate-400 mt-0.5 font-medium">Apply for upcoming leaves. Approvals must be processed **before 12:00 AM** of the leave date.</p>
+                        </div>
+                        <button type="button" onclick="toggleModal('request-leave-modal')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl transition shadow-sm flex items-center gap-1.5 shrink-0 self-end sm:self-auto">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                            Apply Leave
+                        </button>
+                    </div>
+
+                    <div class="overflow-y-auto max-h-64 pr-1 space-y-3">
+                        @forelse($myLeaves as $mLeave)
+                            <div class="p-3 bg-slate-50 border border-slate-200/60 rounded-2xl flex flex-col gap-2">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-[11px] text-slate-700 font-bold flex items-center gap-1">
+                                        <svg class="w-3.5 h-3.5 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 00-2 2z" /></svg>
+                                        {{ $mLeave->start_date->format('d M') }} - {{ $mLeave->end_date->format('d M, Y') }}
+                                    </span>
+                                    
+                                    @if($mLeave->status === 'pending')
+                                        <span class="px-2 py-0.5 bg-amber-50 border border-amber-200 text-amber-700 rounded text-[9px] font-extrabold uppercase tracking-wide">
+                                            Pending
+                                        </span>
+                                    @elseif($mLeave->status === 'approved')
+                                        <span class="px-2 py-0.5 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded text-[9px] font-extrabold uppercase tracking-wide">
+                                            Approved
+                                        </span>
+                                    @else
+                                        <span class="px-2 py-0.5 bg-rose-50 border border-rose-200 text-rose-700 rounded text-[9px] font-extrabold uppercase tracking-wide">
+                                            Rejected
+                                        </span>
+                                    @endif
+                                </div>
+                                
+                                <p class="text-[10px] text-slate-500 font-medium italic">"{{ $mLeave->reason }}"</p>
+                                
+                                @if($mLeave->rejection_reason)
+                                    <div class="bg-rose-50/50 p-2 rounded-xl border border-rose-100/50 text-[10px] text-rose-800 font-medium">
+                                        <span class="font-bold">Rejection Reason:</span> {{ $mLeave->rejection_reason }}
+                                    </div>
+                                @endif
+
+                                @if($mLeave->status === 'pending')
+                                    <form action="{{ route('leave.destroy', $mLeave->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to cancel this leave request?');" class="self-end mt-1">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-[10px] font-bold text-rose-600 hover:text-rose-700 hover:underline">
+                                            Cancel Request
+                                        </button>
+                                    </form>
+                                @endif
+                            </div>
+                        @empty
+                            <div class="text-center text-slate-400 font-semibold italic text-xs py-8">
+                                No leaves requested yet.
+                            </div>
+                        @endforelse
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
+</div>
+
+<!-- ========================================================
+     MODALS SECTION
+     ======================================================== -->
+
+<!-- 1. WEBCAM CAPTURE MODAL (STAFF ONLY) -->
+@if(!Auth::user()->isAdmin() && !$todayLog)
+<div id="camera-modal" class="fixed inset-0 z-50 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 transition-opacity bg-slate-900/60 backdrop-blur-sm" aria-hidden="true" onclick="closeWebcam()"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+        <div class="inline-block overflow-hidden text-left align-middle transition-all transform bg-white rounded-3xl shadow-2xl sm:my-8 sm:align-middle sm:max-w-md sm:w-full">
+            <div class="bg-indigo-900 p-5 text-center text-white relative">
+                <h3 class="text-md font-bold uppercase tracking-wider">Identity Verification</h3>
+                <p class="text-[11px] text-indigo-200 mt-1">Please align your face in the circular scan ring.</p>
+                <button onclick="closeWebcam()" class="absolute right-4 top-4 text-white/70 hover:text-white">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            
+            <div class="p-6 flex flex-col items-center bg-slate-50">
+                <!-- Circular live video ring -->
+                <div class="w-64 h-64 rounded-full overflow-hidden border-4 border-indigo-600 shadow-md relative bg-black camera-pulse">
+                    <video id="webcam-preview" autoplay playsinline class="w-full h-full object-cover rounded-full scale-x-[-1]"></video>
+                </div>
+                
+                <div class="mt-6 flex gap-3 w-full">
+                    <button onclick="closeWebcam()" class="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition">
+                        Cancel
+                    </button>
+                    <button onclick="captureSnapshot()" class="flex-1 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-md">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                        Capture & Clock-In
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
+
+@if(Auth::user()->isAdmin())
+<!-- 2. ADMIN ATTENDANCE GLOBAL SETTINGS MODAL -->
+<div id="settings-modal" class="fixed inset-0 z-50 overflow-y-auto hidden animate-fade-in" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 transition-opacity bg-slate-900/60 backdrop-blur-sm" aria-hidden="true" onclick="toggleModal('settings-modal')"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+        <div class="inline-block overflow-hidden text-left align-middle transition-all transform bg-white rounded-3xl shadow-2xl sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-slate-100">
+            <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-6 text-white flex justify-between items-center relative overflow-hidden border-b border-slate-800">
+                <!-- Subtle background light pattern -->
+                <div class="absolute -right-10 -top-10 w-40 h-40 bg-indigo-600/10 rounded-full blur-3xl"></div>
+                <div class="relative z-10">
+                    <h3 class="text-sm font-bold uppercase tracking-wider brand-font">Attendance Settings</h3>
+                    <p class="text-[11px] text-slate-300 mt-1 font-medium">Configure office IP network, GPS geofencing, and holidays.</p>
+                </div>
+                <button onclick="toggleModal('settings-modal')" class="text-slate-400 hover:text-white transition-all duration-300 hover:rotate-90 relative z-10 p-1.5 bg-white/5 hover:bg-white/10 rounded-full">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+
+            <!-- Tab Headers -->
+            <div class="flex border-b border-slate-100 bg-slate-50/50">
+                <button id="tab-btn-office" type="button" onclick="switchSettingsTab('office')" class="flex-1 py-3 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-center border-b-2 border-indigo-600 text-indigo-600 transition">
+                    Office Settings
+                </button>
+                <button id="tab-btn-holiday" type="button" onclick="switchSettingsTab('holiday')" class="flex-1 py-3 text-[10px] sm:text-xs font-bold uppercase tracking-wider text-center border-b-2 border-transparent text-slate-400 transition">
+                    Holidays Manager
+                </button>
+            </div>
+            
+            <!-- PANEL 1: OFFICE SETTINGS -->
+            <div id="settings-panel-office" class="block">
+                <form action="{{ route('attendance.settings') }}" method="POST" class="p-6 space-y-5 bg-white">
+                    @csrf
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Office Broadband Public IP(s)</label>
+                        <input type="text" name="office_ip" value="{{ $settings['office_ip'] }}" required placeholder="e.g. 103.111.22.33, 2401:4900:3300::1" class="w-full bg-slate-50 hover:bg-slate-100/50 border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-xl px-4 py-3 outline-none font-semibold text-xs sm:text-sm text-slate-700 transition duration-300">
+                        <span class="text-[10px] text-slate-400 leading-relaxed block mt-1.5 font-medium">Staff must match an allowed IP. You can add <strong>multiple IPs separated by commas</strong>.</span>
+                        
+                        <div class="mt-3 text-xs text-indigo-600 font-medium flex items-center gap-2 bg-indigo-50/60 p-3 rounded-xl border border-indigo-100/30">
+                            <svg class="w-4 h-4 shrink-0 text-indigo-500 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <span>Your Current Public IP: <strong class="font-mono bg-white text-indigo-700 px-2 py-0.5 rounded border border-indigo-200/50 shadow-sm select-all">{{ request()->ip() }}</strong></span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Office Latitude</label>
+                            <input type="number" step="any" id="office-latitude" name="latitude" value="{{ $settings['latitude'] }}" required class="w-full bg-slate-50 hover:bg-slate-100/50 border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-xl px-4 py-3 outline-none font-semibold text-xs sm:text-sm text-slate-700 transition duration-300">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Office Longitude</label>
+                            <input type="number" step="any" id="office-longitude" name="longitude" value="{{ $settings['longitude'] }}" required class="w-full bg-slate-50 hover:bg-slate-100/50 border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-xl px-4 py-3 outline-none font-semibold text-xs sm:text-sm text-slate-700 transition duration-300">
+                        </div>
+                    </div>
+                    
+                    <div class="mt-2 bg-slate-50 border border-slate-100 p-3 rounded-xl flex flex-col gap-1">
+                        <button type="button" onclick="autoFetchOfficeCoordinates()" class="text-xs text-indigo-600 hover:text-indigo-700 font-bold flex items-center gap-1.5 transition">
+                            <svg class="w-4 h-4 shrink-0 text-indigo-500 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                            <span>📍 Auto-Fetch Current Location coordinates</span>
+                        </button>
+                        <span id="coord-status" class="text-[10px] text-slate-400 font-medium hidden"></span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Late Cutoff Time</label>
+                            <input type="time" name="office_start_time" value="{{ $settings['office_start_time'] }}" required class="w-full bg-slate-50 hover:bg-slate-100/50 border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-xl px-4 py-3 outline-none font-semibold text-xs sm:text-sm text-slate-700 transition duration-300 cursor-pointer">
+                            <span class="text-[10px] text-slate-400 leading-relaxed block mt-1.5 font-medium">Time cutoff for Late checkins.</span>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Grace Time (Mins)</label>
+                            <input type="number" name="grace_time_minutes" value="{{ $settings['grace_time_minutes'] ?? '15' }}" required min="0" max="60" class="w-full bg-slate-50 hover:bg-slate-100/50 border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-xl px-4 py-3 outline-none font-semibold text-xs sm:text-sm text-slate-700 transition duration-300">
+                            <span class="text-[10px] text-slate-400 leading-relaxed block mt-1.5 font-medium">Grace buffer after cutoff.</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Standard Exit Time</label>
+                            <input type="time" name="standard_exit_time" value="{{ $settings['standard_exit_time'] ?? '18:30' }}" required class="w-full bg-slate-50 hover:bg-slate-100/50 border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-xl px-4 py-3 outline-none font-semibold text-xs sm:text-sm text-slate-700 transition duration-300 cursor-pointer">
+                            <span class="text-[10px] text-slate-400 leading-relaxed block mt-1.5 font-medium">Overtime starts after this hour.</span>
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Comp-Off Ratio (Hrs)</label>
+                            <input type="number" step="0.5" name="overtime_comp_off_threshold" value="{{ $settings['overtime_comp_off_threshold'] ?? '8.0' }}" required class="w-full bg-slate-50 hover:bg-slate-100/50 border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-xl px-4 py-3 outline-none font-semibold text-xs sm:text-sm text-slate-700 transition duration-300">
+                            <span class="text-[10px] text-slate-400 leading-relaxed block mt-1.5 font-medium">Comp-Off ratio (e.g. 8 hrs = 1 day).</span>
+                        </div>
+                    </div>
+
+                    <div class="pt-4 border-t border-slate-100 flex items-center justify-between gap-2">
+                        <!-- Purge option -->
+                        <button type="submit" form="purge-form" onclick="return confirm('Purge Old Selfie Snapshots? This will permanently delete webcam image files older than 30 days. No database texts will be removed.')" class="py-3 px-4 bg-amber-50 hover:bg-amber-100 border border-amber-200/50 text-amber-700 rounded-xl text-xs font-bold transition duration-300 hover:scale-[1.03]">
+                            Optimize Disk Space
+                        </button>
+
+                        <div class="flex gap-2">
+                            <button type="button" onclick="toggleModal('settings-modal')" class="py-3 px-5 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition duration-300 hover:scale-[1.03]">
+                                Cancel
+                            </button>
+                            <button type="submit" class="py-3 px-6 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-xl text-xs font-bold transition-all duration-300 hover:scale-[1.03] shadow-md shadow-indigo-600/10 hover:shadow-indigo-600/20">
+                                Save Configuration
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- PANEL 2: HOLIDAYS MANAGER -->
+            <div id="settings-panel-holiday" class="hidden">
+                <!-- Add Holiday Form -->
+                <form action="{{ route('attendance.holidays.store') }}" method="POST" class="p-6 space-y-4 bg-white">
+                    @csrf
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Holiday Date</label>
+                            <input type="date" name="date" required class="w-full bg-slate-50 hover:bg-slate-100/50 border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-xl px-4 py-3 outline-none font-semibold text-xs text-slate-700 transition duration-300">
+                        </div>
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Reason / Description</label>
+                            <input type="text" name="reason" placeholder="e.g. Republic Day" required class="w-full bg-slate-50 hover:bg-slate-100/50 border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-xl px-4 py-3 outline-none font-semibold text-xs text-slate-700 transition duration-300">
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all duration-300 shadow-md">
+                        + Add New Holiday
+                    </button>
+                </form>
+
+                <!-- Holiday List -->
+                <div class="p-6 border-t border-slate-100 max-h-64 overflow-y-auto bg-slate-50/50">
+                    <h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Registered Holidays</h4>
+                    <div class="divide-y divide-slate-100">
+                        @forelse($holidaysList as $hDay)
+                            <div class="py-2.5 flex items-center justify-between">
+                                <div class="min-w-0">
+                                    <span class="font-bold text-slate-800 text-xs block">{{ $hDay->date->format('d M, Y') }}</span>
+                                    <span class="text-[10px] text-slate-400 block mt-0.5 font-medium truncate">{{ $hDay->reason }}</span>
+                                </div>
+                                <form action="{{ route('attendance.holidays.destroy', $hDay->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to delete this holiday?');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="text-rose-500 hover:text-rose-700 font-extrabold text-[10px] uppercase tracking-wider transition bg-rose-50 hover:bg-rose-100 px-2 py-1 rounded">
+                                        Delete
+                                    </button>
+                                </form>
+                            </div>
+                        @empty
+                            <p class="text-slate-400 italic text-center py-4 text-xs font-medium">No holidays registered in the database.</p>
+                        @endforelse
+                    </div>
+                </div>
+
+                <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+                    <button type="button" onclick="toggleModal('settings-modal')" class="py-2.5 px-5 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition duration-200">
+                        Close Settings
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Secondary Purge form -->
+            <form id="purge-form" action="{{ route('attendance.purge_selfies') }}" method="POST" class="hidden">
+                @csrf
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 3. ADMIN MANUAL LOG CREATION MODAL -->
+<div id="manual-modal" class="fixed inset-0 z-50 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 transition-opacity bg-slate-900/60 backdrop-blur-sm" aria-hidden="true" onclick="toggleModal('manual-modal')"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+        <div class="inline-block overflow-hidden text-left align-middle transition-all transform bg-white rounded-3xl shadow-2xl sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+            <div class="bg-indigo-950 p-6 text-white flex justify-between items-center">
+                <div>
+                    <h3 class="text-md font-bold uppercase tracking-wider">Mark Manual Attendance</h3>
+                    <p class="text-[11px] text-slate-300 mt-1">Instantly add or correct daily attendance records for staff.</p>
+                </div>
+                <button onclick="toggleModal('manual-modal')" class="text-slate-400 hover:text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            
+            <form action="{{ route('attendance.manual') }}" method="POST" class="p-6 space-y-4">
+                @csrf
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Select Staff Employee</label>
+                    <select name="user_id" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-xs text-slate-700 cursor-pointer">
+                        <option value="">Choose Employee...</option>
+                        @foreach($staffList as $staff)
+                            <option value="{{ $staff->id }}">{{ $staff->name }} ({{ $staff->email }})</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Attendance Date</label>
+                        <input type="date" name="date" value="{{ now()->toDateString() }}" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-xs text-slate-700 cursor-pointer">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Attendance Status</label>
+                        <select name="status" required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-xs text-slate-700 cursor-pointer">
+                            <option value="present">Present (On-Time)</option>
+                            <option value="grace">Grace Period</option>
+                            <option value="late">Late Check-In</option>
+                            <option value="half_day">Half Day</option>
+                            <option value="absent">Absent</option>
+                            <option value="leave">Approved Leave</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Clock In Time (Optional)</label>
+                        <input type="time" name="clock_in" value="10:00" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-xs text-slate-700 cursor-pointer">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Clock Out Time (Optional)</label>
+                        <input type="time" name="clock_out" value="18:30" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-xs text-slate-700 cursor-pointer">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Admin Reason / Correction Remarks</label>
+                    <textarea name="admin_remarks" placeholder="Provide details e.g. Forgot to clock in, on leave, field assignment..." required class="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-xs text-slate-700 resize-none h-16"></textarea>
+                </div>
+
+                <div class="pt-4 border-t border-slate-100 flex justify-end gap-2">
+                    <button type="button" onclick="toggleModal('manual-modal')" class="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition">
+                        Cancel
+                    </button>
+                    <button type="submit" class="py-2.5 px-5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shadow-md">
+                        Save Log
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 4. ADMIN WFH/REMOTE PERMISSIONS PANEL -->
+<div id="remote-staff-modal" class="fixed inset-0 z-50 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 transition-opacity bg-slate-900/60 backdrop-blur-sm" aria-hidden="true" onclick="toggleModal('remote-staff-modal')"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+        <div class="inline-block overflow-hidden text-left align-middle transition-all transform bg-white rounded-3xl shadow-2xl sm:my-8 sm:align-middle sm:max-w-md sm:w-full">
+            <div class="bg-indigo-950 p-6 text-white flex justify-between items-center">
+                <div>
+                    <h3 class="text-md font-bold uppercase tracking-wider">Remote Attendance Permissions</h3>
+                    <p class="text-[11px] text-slate-300 mt-1">Allow employees to clock-in from home or on mobile data.</p>
+                </div>
+                <button onclick="toggleModal('remote-staff-modal')" class="text-slate-400 hover:text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            
+            <div class="p-6 divide-y divide-slate-100 max-h-96 overflow-y-auto">
+                @foreach($staffList as $staff)
+                <div class="py-3 flex items-center justify-between">
+                    <div>
+                        <span class="font-bold text-slate-800 text-xs block">{{ $staff->name }}</span>
+                        <span class="text-[10px] text-slate-400 block mt-0.5">{{ $staff->email }}</span>
+                    </div>
+                    <!-- Slide Switch Toggle -->
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" onchange="toggleRemoteStatus({{ $staff->id }}, this)" {{ $staff->allow_remote_attendance ? 'checked' : '' }} class="sr-only peer">
+                        <div class="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                    </label>
+                </div>
+                @endforeach
+            </div>
+            
+            <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+                <button onclick="toggleModal('remote-staff-modal')" class="py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold px-5 transition">
+                    Done
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 5. ADMIN EDIT INDIVIDUAL RECORD MODAL -->
+<div id="edit-log-modal" class="fixed inset-0 z-50 overflow-y-auto hidden animate-fade-in" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 transition-opacity bg-slate-900/60 backdrop-blur-sm" aria-hidden="true" onclick="closeEditModal()"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+        <div class="inline-block overflow-hidden text-left align-middle transition-all transform bg-white rounded-3xl shadow-2xl sm:my-8 sm:align-middle sm:max-w-md sm:w-full border border-slate-100 font-sans">
+            <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-5 text-white flex justify-between items-center relative overflow-hidden border-b border-slate-800">
+                <!-- Subtle background light pattern -->
+                <div class="absolute -right-10 -top-10 w-32 h-32 bg-indigo-600/10 rounded-full blur-2xl"></div>
+                <div class="relative z-10">
+                    <h3 class="text-sm font-bold uppercase tracking-wider brand-font">Edit Attendance Record</h3>
+                    <p class="text-[10px] text-slate-300 mt-1 font-medium" id="edit-modal-subtitle">Update logs.</p>
+                </div>
+                <button onclick="closeEditModal()" class="text-slate-400 hover:text-white transition-all duration-300 hover:rotate-90 relative z-10 p-1.5 bg-white/5 hover:bg-white/10 rounded-full">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            
+            <form id="edit-log-form" action="" method="POST" class="p-5 space-y-4 bg-white">
+                @csrf
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Clock In</label>
+                        <input type="time" name="clock_in" id="edit-clock-in" required class="w-full bg-slate-50 hover:bg-slate-100/50 border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-xl px-4 py-3 outline-none font-semibold text-xs sm:text-sm text-slate-700 transition duration-300 cursor-pointer">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Clock Out</label>
+                        <input type="time" name="clock_out" id="edit-clock-out" class="w-full bg-slate-50 hover:bg-slate-100/50 border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-xl px-4 py-3 outline-none font-semibold text-xs sm:text-sm text-slate-700 transition duration-300 cursor-pointer">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Attendance Status</label>
+                    <select name="status" id="edit-status" required class="w-full bg-slate-50 hover:bg-slate-100/50 border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-xl px-4 py-3 outline-none font-semibold text-xs sm:text-sm text-slate-700 transition duration-300 cursor-pointer">
+                        <option value="present">Present (On-Time)</option>
+                        <option value="grace">Grace Period</option>
+                        <option value="late">Late Check-In</option>
+                        <option value="half_day">Half Day</option>
+                        <option value="absent">Absent</option>
+                        <option value="leave">Approved Leave</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Administrative Remarks</label>
+                    <textarea name="admin_remarks" id="edit-admin-remarks" placeholder="Add correction details..." required class="w-full bg-slate-50 hover:bg-slate-100/50 border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-xl px-4 py-3 outline-none font-semibold text-xs sm:text-sm text-slate-700 transition duration-300 resize-none h-20 placeholder-slate-400"></textarea>
+                </div>
+
+                <div class="pt-4 border-t border-slate-100 flex justify-end gap-2">
+                    <button type="button" onclick="closeEditModal()" class="py-3 px-5 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition duration-300 hover:scale-[1.03]">
+                        Cancel
+                    </button>
+                    <button type="submit" class="py-3 px-6 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-xl text-xs font-bold transition-all duration-300 hover:scale-[1.03] shadow-md shadow-indigo-600/10 hover:shadow-indigo-600/20">
+                        Apply Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
+
+<!-- 5. WEEKLY PERFORMANCE REPORT DETAILS MODAL -->
+@if(Auth::user()->isAdmin())
+<div id="weekly-report-modal" class="fixed inset-0 z-50 overflow-y-auto hidden animate-fade-in" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 transition-opacity bg-slate-900/60 backdrop-blur-sm" aria-hidden="true" onclick="closeWeeklyReportModal()"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+        <div class="inline-block overflow-hidden text-left align-middle transition-all transform bg-white rounded-3xl shadow-2xl sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full border border-slate-100 font-sans">
+            <!-- Modal Header -->
+            <div class="bg-gradient-to-r from-indigo-900 via-indigo-950 to-indigo-900 p-6 text-white flex justify-between items-center relative overflow-hidden border-b border-indigo-950">
+                <div class="absolute -right-10 -top-10 w-40 h-40 bg-indigo-500/20 rounded-full blur-3xl"></div>
+                <div class="relative z-10">
+                    <span class="px-2.5 py-0.5 bg-indigo-500/30 text-indigo-200 border border-indigo-500/40 rounded-full text-[9px] font-extrabold uppercase tracking-widest">Office Performance Summary</span>
+                    <h3 class="text-base font-extrabold mt-1 brand-font" id="reportModalTitle">Weekly Activity & Efficiency Report</h3>
+                    <p class="text-[10px] text-indigo-200/70 font-semibold mt-0.5" id="reportModalDateRange">Week of -- to --</p>
+                </div>
+                <button onclick="closeWeeklyReportModal()" class="text-slate-400 hover:text-white transition-all duration-300 hover:rotate-90 relative z-10 p-1.5 bg-white/5 hover:bg-white/10 rounded-full">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            
+            <!-- Modal Content -->
+            <div class="p-6 bg-white overflow-y-auto max-h-[500px]" id="reportModalBody">
+                <div class="animate-pulse space-y-4">
+                    <div class="h-4 bg-slate-200 rounded w-1/3"></div>
+                    <div class="space-y-2">
+                        <div class="h-3 bg-slate-200 rounded"></div>
+                        <div class="h-3 bg-slate-200 rounded w-5/6"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="p-4 bg-slate-50 border-t border-slate-100 flex justify-end gap-2">
+                <button type="button" onclick="closeWeeklyReportModal()" class="py-2.5 px-5 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition duration-200">
+                    Close Summary
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+@endif
+
+<!-- 6. HIGH-RESOLUTION PHOTO EXPANSION MODAL -->
+<div id="image-modal" class="fixed inset-0 z-50 overflow-y-auto hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-center justify-center min-h-screen px-4 text-center">
+        <div class="fixed inset-0 transition-opacity bg-slate-900/80 backdrop-blur-sm" aria-hidden="true" onclick="closeImageModal()"></div>
+        <div class="inline-block overflow-hidden transition-all transform max-w-lg w-full relative z-10">
+            <button onclick="closeImageModal()" class="absolute right-4 top-4 text-white bg-black/40 hover:bg-black/60 p-2 rounded-full focus:outline-none">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+            <img id="image-modal-content" src="" class="w-full h-auto rounded-3xl shadow-2xl border-4 border-white/10" alt="Selfie Expansion">
+        </div>
+    </div>
+</div>
+
+<!-- 7. STAFF CLOCK OUT CONFIRMATION MODAL -->
+@if(!Auth::user()->isAdmin() && isset($todayLog) && $todayLog && !$todayLog->clock_out)
+<div id="clock-out-modal" class="fixed inset-0 z-50 overflow-y-auto hidden animate-fade-in" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 transition-opacity bg-slate-900/60 backdrop-blur-sm" aria-hidden="true" onclick="toggleModal('clock-out-modal')"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+        <div class="inline-block overflow-hidden text-left align-middle transition-all transform bg-white rounded-3xl shadow-2xl sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-slate-100" style="font-family: 'Inter', sans-serif;">
+            <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-6 text-white flex justify-between items-center relative overflow-hidden border-b border-slate-800">
+                <div class="absolute -right-10 -top-10 w-40 h-40 bg-indigo-600/10 rounded-full blur-3xl"></div>
+                <div class="relative z-10">
+                    <h3 class="text-sm font-bold uppercase tracking-wider brand-font">Submit Work Log & Punch-Out</h3>
+                </div>
+                <button onclick="toggleModal('clock-out-modal')" class="text-slate-400 hover:text-white transition-all duration-300 hover:rotate-90 relative z-10 p-1.5 bg-white/5 hover:bg-white/10 rounded-full">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            
+            <form id="clock-out-form" action="{{ route('attendance.clock_out') }}" method="POST">
+                @csrf
+                <div class="p-6 bg-white space-y-5">
+                    <p class="text-slate-600 text-xs font-semibold leading-relaxed">
+                        To successfully punch out, please enter a mandatory <strong>3-bullet-point</strong> log detailing the tasks you completed today. You can add more tasks if needed:
+                    </p>
+
+                    <!-- Tasks Container -->
+                    <div id="tasks-container" class="space-y-4 max-h-[300px] overflow-y-auto pr-1">
+                        <!-- Task 1 (Mandatory) -->
+                        <div class="task-item">
+                            <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Completed Task 1 *</label>
+                            <div class="relative">
+                                <span class="absolute left-3.5 top-3 text-slate-400 font-extrabold text-sm select-none">•</span>
+                                <input type="text" name="tasks[]" required minlength="10" placeholder="e.g. Completed GST return filing for X Client" 
+                                    class="w-full pl-8 pr-3 py-2.5 bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 focus:border-indigo-500 rounded-xl text-xs font-medium text-slate-800 transition duration-200 focus:ring-4 focus:ring-indigo-500/10 focus:outline-none">
+                            </div>
+                        </div>
+
+                        <!-- Task 2 (Mandatory) -->
+                        <div class="task-item">
+                            <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Completed Task 2 *</label>
+                            <div class="relative">
+                                <span class="absolute left-3.5 top-3 text-slate-400 font-extrabold text-sm select-none">•</span>
+                                <input type="text" name="tasks[]" required minlength="10" placeholder="e.g. Drafted appeal response for Y Client" 
+                                    class="w-full pl-8 pr-3 py-2.5 bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 focus:border-indigo-500 rounded-xl text-xs font-medium text-slate-800 transition duration-200 focus:ring-4 focus:ring-indigo-500/10 focus:outline-none">
+                            </div>
+                        </div>
+
+                        <!-- Task 3 (Mandatory) -->
+                        <div class="task-item">
+                            <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1">Completed Task 3 *</label>
+                            <div class="relative">
+                                <span class="absolute left-3.5 top-3 text-slate-400 font-extrabold text-sm select-none">•</span>
+                                <input type="text" name="tasks[]" required minlength="10" placeholder="e.g. Reconciled purchase registers for April audits" 
+                                    class="w-full pl-8 pr-3 py-2.5 bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 focus:border-indigo-500 rounded-xl text-xs font-medium text-slate-800 transition duration-200 focus:ring-4 focus:ring-indigo-500/10 focus:outline-none">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Add More Task Button -->
+                    <div class="pt-1">
+                        <button type="button" onclick="addNewTaskField()" class="w-full py-2.5 px-4 border border-dashed border-indigo-200 hover:border-indigo-500 text-indigo-500 hover:text-indigo-600 bg-indigo-50/20 hover:bg-indigo-50/40 rounded-xl text-xs font-bold transition duration-300 flex items-center justify-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                            Add Additional Task
+                        </button>
+                    </div>
+
+                    <div class="flex justify-end gap-2 pt-3 border-t border-slate-100">
+                        <button type="button" onclick="toggleModal('clock-out-modal')" class="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition duration-300">
+                            Cancel
+                        </button>
+                        <button type="submit" class="py-2.5 px-5 bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer transition">
+                            Confirm Punch-Out
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
+
+<!-- 8. STAFF REQUEST LEAVE MODAL -->
+@if(!Auth::user()->isAdmin())
+<div id="request-leave-modal" class="fixed inset-0 z-50 overflow-y-auto hidden animate-fade-in" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 transition-opacity bg-slate-900/60 backdrop-blur-sm" aria-hidden="true" onclick="toggleModal('request-leave-modal')"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+        <div class="inline-block overflow-hidden text-left align-middle transition-all transform bg-white rounded-3xl shadow-2xl sm:my-8 sm:align-middle sm:max-w-md sm:w-full border border-slate-100">
+            <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-5 text-white flex justify-between items-center relative overflow-hidden border-b border-slate-800">
+                <div class="absolute -right-10 -top-10 w-32 h-32 bg-indigo-600/10 rounded-full blur-2xl"></div>
+                <div class="relative z-10">
+                    <h3 class="text-sm font-bold uppercase tracking-wider brand-font">Apply For Leave</h3>
+                    <p class="text-[10px] text-slate-300 mt-1 font-medium">Submit leave request for approval.</p>
+                </div>
+                <button type="button" onclick="toggleModal('request-leave-modal')" class="text-slate-400 hover:text-white transition-all duration-300 hover:rotate-90 relative z-10 p-1.5 bg-white/5 hover:bg-white/10 rounded-full">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            
+            <form action="{{ route('leave.request') }}" method="POST" class="p-5 space-y-4 bg-white">
+                @csrf
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Start Date</label>
+                        <input type="date" name="start_date" min="{{ now()->addDay()->toDateString() }}" value="{{ now()->addDay()->toDateString() }}" required class="w-full bg-slate-50 hover:bg-slate-100/50 border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-xl px-4 py-3 outline-none font-semibold text-xs sm:text-sm text-slate-700 transition duration-300 cursor-pointer">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">End Date</label>
+                        <input type="date" name="end_date" min="{{ now()->addDay()->toDateString() }}" value="{{ now()->addDay()->toDateString() }}" required class="w-full bg-slate-50 hover:bg-slate-100/50 border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-xl px-4 py-3 outline-none font-semibold text-xs sm:text-sm text-slate-700 transition duration-300 cursor-pointer">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Reason for Leave</label>
+                    <textarea name="reason" placeholder="Please detail the reason for your leave request..." required class="w-full bg-slate-50 hover:bg-slate-100/50 border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-xl px-4 py-3 outline-none font-semibold text-xs sm:text-sm text-slate-700 transition duration-300 resize-none h-24 placeholder-slate-400"></textarea>
+                </div>
+
+                <div class="bg-indigo-50/50 border border-indigo-100/50 p-3 rounded-xl text-[10px] text-indigo-950 leading-relaxed font-semibold">
+                    ⚠️ <strong>Midnight Deadline:</strong> All leave requests must be approved by the administrator **before 12:00 AM (midnight)** of the leave start date. Make sure to apply well in advance.
+                </div>
+
+                <div class="pt-4 border-t border-slate-100 flex justify-end gap-2">
+                    <button type="button" onclick="toggleModal('request-leave-modal')" class="py-3 px-5 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition duration-300">
+                        Cancel
+                    </button>
+                    <button type="submit" class="py-3 px-6 bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 text-white rounded-xl text-xs font-bold transition-all duration-300 hover:scale-[1.03] shadow-md shadow-indigo-600/10">
+                        Submit Request
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
+
+<!-- 9. ADMIN REJECT LEAVE MODAL -->
+@if(Auth::user()->isAdmin())
+<div id="reject-leave-modal" class="fixed inset-0 z-50 overflow-y-auto hidden animate-fade-in" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+        <div class="fixed inset-0 transition-opacity bg-slate-900/60 backdrop-blur-sm" aria-hidden="true" onclick="closeRejectLeaveModal()"></div>
+        <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+        <div class="inline-block overflow-hidden text-left align-middle transition-all transform bg-white rounded-3xl shadow-2xl sm:my-8 sm:align-middle sm:max-w-md sm:w-full border border-slate-100">
+            <div class="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-5 text-white flex justify-between items-center relative overflow-hidden border-b border-slate-800">
+                <div class="absolute -right-10 -top-10 w-32 h-32 bg-rose-600/10 rounded-full blur-2xl"></div>
+                <div class="relative z-10">
+                    <h3 class="text-sm font-bold uppercase tracking-wider brand-font">Reject Leave Request</h3>
+                    <p class="text-[10px] text-slate-300 mt-1 font-medium" id="reject-leave-modal-subtitle">Staff: </p>
+                </div>
+                <button type="button" onclick="closeRejectLeaveModal()" class="text-slate-400 hover:text-white transition-all duration-300 hover:rotate-90 relative z-10 p-1.5 bg-white/5 hover:bg-white/10 rounded-full">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            
+            <form id="reject-leave-form" action="" method="POST" class="p-5 space-y-4 bg-white">
+                @csrf
+                <div>
+                    <label class="block text-[11px] font-bold text-slate-500 uppercase tracking-wider mb-2">Rejection Reason</label>
+                    <textarea name="rejection_reason" placeholder="Please specify the reason for rejecting this request..." required class="w-full bg-slate-50 hover:bg-slate-100/50 border border-slate-200 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-xl px-4 py-3 outline-none font-semibold text-xs sm:text-sm text-slate-700 transition duration-300 resize-none h-24 placeholder-slate-400"></textarea>
+                </div>
+
+                <div class="pt-4 border-t border-slate-100 flex justify-end gap-2">
+                    <button type="button" onclick="closeRejectLeaveModal()" class="py-3 px-5 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition duration-300">
+                        Cancel
+                    </button>
+                    <button type="submit" class="py-3 px-6 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all duration-300 hover:scale-[1.03] shadow-md shadow-rose-600/10">
+                        Confirm Rejection
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endif
+
+<!-- ========================================================
+     SCRIPTS & FRONTEND ENGINES
+     ======================================================== -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    // Dynamic Task Logging for Clock-Out Modal
+    function addNewTaskField() {
+        const container = document.getElementById('tasks-container');
+        const taskCount = container.getElementsByClassName('task-item').length + 1;
+        
+        const taskDiv = document.createElement('div');
+        taskDiv.className = 'task-item animate-fade-in';
+        taskDiv.style.fontFamily = "'Inter', sans-serif";
+        taskDiv.innerHTML = `
+            <div class="flex justify-between items-center mb-1">
+                <label class="block text-[10px] font-bold uppercase tracking-wider text-slate-400">Completed Task ${taskCount}</label>
+                <button type="button" onclick="this.closest('.task-item').remove(); reindexTaskLabels();" class="text-rose-500 hover:text-rose-700 text-[10px] font-bold uppercase tracking-wider transition">
+                    Remove
+                </button>
+            </div>
+            <div class="relative">
+                <span class="absolute left-3.5 top-3 text-slate-400 font-extrabold text-sm select-none">•</span>
+                <input type="text" name="tasks[]" required minlength="10" placeholder="e.g. Additional work details..." 
+                    class="w-full pl-8 pr-3 py-2.5 bg-slate-50 hover:bg-slate-100/70 focus:bg-white border border-slate-200 focus:border-indigo-500 rounded-xl text-xs font-medium text-slate-800 transition duration-200 focus:ring-4 focus:ring-indigo-500/10 focus:outline-none"
+                    style="font-family: 'Inter', sans-serif;">
+            </div>
+        `;
+        container.appendChild(taskDiv);
+        
+        // Scroll to the bottom of the tasks container smoothly
+        container.scrollTo({
+            top: container.scrollHeight,
+            behavior: 'smooth'
+        });
+    }
+
+    function reindexTaskLabels() {
+        const container = document.getElementById('tasks-container');
+        const items = container.getElementsByClassName('task-item');
+        for (let i = 0; i < items.length; i++) {
+            const label = items[i].querySelector('label');
+            const isMandatory = i < 3;
+            label.textContent = `Completed Task ${i + 1}${isMandatory ? ' *' : ''}`;
+        }
+    }
+
+    // Auto-Fetch Current Location Coordinates for Office Settings
+    function autoFetchOfficeCoordinates() {
+        const statusText = document.getElementById('coord-status');
+        const latInput = document.getElementById('office-latitude');
+        const lngInput = document.getElementById('office-longitude');
+        
+        if (!navigator.geolocation) {
+            alert("Geolocation is not supported by your browser.");
+            return;
+        }
+        
+        statusText.classList.remove('hidden');
+        statusText.innerText = "Connecting to GPS...";
+        statusText.className = "text-[10px] text-amber-500 font-medium block mt-1";
+        
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                latInput.value = position.coords.latitude.toFixed(6);
+                lngInput.value = position.coords.longitude.toFixed(6);
+                statusText.innerText = "Location coordinates loaded successfully! Make sure to save settings below.";
+                statusText.className = "text-[10px] text-emerald-600 font-bold block mt-1";
+            },
+            (error) => {
+                statusText.innerText = "GPS Error: " + error.message;
+                statusText.className = "text-[10px] text-rose-500 font-medium block mt-1";
+                alert("GPS error: " + error.message + ". Please enable device location services.");
+            },
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    }
+
+    // General Ticking Clock Logic (Server Synced)
+    document.addEventListener('DOMContentLoaded', function() {
+        const liveTimeEl = document.getElementById('live-time');
+        const liveDateEl = document.getElementById('live-date');
+        const clockContainer = document.getElementById('live-clock-container');
+        
+        if (liveTimeEl && clockContainer) {
+            const serverTime = parseInt(clockContainer.getAttribute('data-server-time'));
+            const clientTime = Date.now();
+            const timeDiff = serverTime - clientTime; // Millisecond offset
+            
+            function updateClock() {
+                // Generate time accurately using server offset
+                const now = new Date(Date.now() + timeDiff);
+                let hours = now.getHours();
+                let minutes = now.getMinutes();
+                let seconds = now.getSeconds();
+                let ampm = hours >= 12 ? 'PM' : 'AM';
+                
+                hours = hours % 12;
+                hours = hours ? hours : 12;
+                hours = hours < 10 ? '0' + hours : hours;
+                minutes = minutes < 10 ? '0' + minutes : minutes;
+                seconds = seconds < 10 ? '0' + seconds : seconds;
+                
+                liveTimeEl.innerText = hours + ':' + minutes + ':' + seconds + ' ' + ampm;
+                
+                if (liveDateEl) {
+                    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                    liveDateEl.innerText = now.toLocaleDateString('en-US', options);
+                }
+            }
+            updateClock();
+            setInterval(updateClock, 1000);
+        }
+    });
+
+    // Modal toggler
+    function toggleModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.toggle('hidden');
+        }
+    }
+
+    // Camera Webcam Engine (Staff Area)
+    let streamInstance = null;
+    
+    function triggerClockIn() {
+        // Fetch HTML5 GPS Coordinate details first
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    document.getElementById('latitude-input').value = position.coords.latitude;
+                    document.getElementById('longitude-input').value = position.coords.longitude;
+                    openWebcam();
+                },
+                (error) => {
+                    console.warn("GPS Geolocation access blocked/failed: " + error.message);
+                    // Still open webcam even if Geolocation fails so they can attempt checkin
+                    openWebcam();
+                },
+                { enableHighAccuracy: true, timeout: 5000 }
+            );
+        } else {
+            openWebcam();
+        }
+    }
+
+    function openWebcam() {
+        const video = document.getElementById('webcam-preview');
+        if (!video) return;
+
+        navigator.mediaDevices.getUserMedia({
+            video: { width: 480, height: 480, facingMode: "user" }
+        })
+        .then((stream) => {
+            streamInstance = stream;
+            video.srcObject = stream;
+            document.getElementById('camera-modal').classList.remove('hidden');
+        })
+        .catch((error) => {
+            alert("CANNOT ACCESS CAMERA: Attendance marking requires a live selfie verification. Please allow camera permissions in your browser or phone settings. Details: " + error.message);
+        });
+    }
+
+    function closeWebcam() {
+        if (streamInstance) {
+            streamInstance.getTracks().forEach(track => track.stop());
+            streamInstance = null;
+        }
+        const modal = document.getElementById('camera-modal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    function captureSnapshot() {
+        const video = document.getElementById('webcam-preview');
+        const selfieInput = document.getElementById('selfie-input');
+        const form = document.getElementById('clock-in-form');
+
+        if (!video || !selfieInput || !form) return;
+
+        // Create Canvas element dynamically to render base64 jpg
+        const canvas = document.createElement('canvas');
+        canvas.width = 480;
+        canvas.height = 480;
+        const context = canvas.getContext('2d');
+        
+        // Horizontal flip (mirror image) for realistic check-in snapshots
+        context.translate(480, 0);
+        context.scale(-1, 1);
+        
+        context.drawImage(video, 0, 0, 480, 480);
+
+        // Convert Frame to Base64 String
+        const base64Data = canvas.toDataURL('image/jpeg', 0.85);
+        selfieInput.value = base64Data;
+
+        // Stop stream and close modal
+        closeWebcam();
+
+        // Auto submit clock-in form
+        form.submit();
+    }
+
+    @if(Auth::user()->isAdmin())
+    // --------------------------------------------------------
+    // ADMIN FUNCTIONS
+    // --------------------------------------------------------
+    
+    function openRejectLeaveModal(leaveId, staffName) {
+        const modal = document.getElementById('reject-leave-modal');
+        const form = document.getElementById('reject-leave-form');
+        const subtitle = document.getElementById('reject-leave-modal-subtitle');
+        if (!modal || !form || !subtitle) return;
+
+        form.action = `/admin/leave/${leaveId}/reject`;
+        subtitle.innerText = `Staff: ${staffName}`;
+        modal.classList.remove('hidden');
+    }
+
+    function closeRejectLeaveModal() {
+        const modal = document.getElementById('reject-leave-modal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    // AJAX ping to trigger Remote / WFH allowance toggling
+    function toggleRemoteStatus(userId, checkbox) {
+        const isChecked = checkbox.checked;
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || "{{ csrf_token() }}";
+        
+        fetch(`/attendance/toggle-remote/${userId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            },
+            body: JSON.stringify({ allow_remote: isChecked })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Flash animation or custom popup
+                console.log(data.message);
+            } else {
+                checkbox.checked = !isChecked; // Revert checkbox state
+                alert("Error toggling remote mode: " + data.message);
+            }
+        })
+        .catch(error => {
+            checkbox.checked = !isChecked; // Revert checkbox state
+            alert("Failed to communicate with server: " + error.message);
+        });
+    }
+
+    // Toggle Accordion Group for Attendance
+    function toggleAccordion(id) {
+        const el = document.getElementById(id);
+        const chevron = document.getElementById('chevron-' + id.replace('date-group-', ''));
+        if (!el) return;
+        
+        if (el.classList.contains('hidden')) {
+            el.classList.remove('hidden');
+            if (chevron) {
+                chevron.classList.add('rotate-180');
+            }
+        } else {
+            el.classList.add('hidden');
+            if (chevron) {
+                chevron.classList.remove('rotate-180');
+            }
+        }
+    }
+
+    // Image Zoom modal triggers
+    function openImageModal(imgUrl) {
+        const modal = document.getElementById('image-modal');
+        const content = document.getElementById('image-modal-content');
+        if (modal && content) {
+            content.src = imgUrl;
+            modal.classList.remove('hidden');
+        }
+    }
+
+    function closeImageModal() {
+        const modal = document.getElementById('image-modal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    // Log Edit Modal details setter
+    function openEditModal(data) {
+        const form = document.getElementById('edit-log-form');
+        const modal = document.getElementById('edit-log-modal');
+        const title = document.getElementById('edit-modal-subtitle');
+        
+        if (!form || !modal || !title) return;
+
+        document.getElementById('edit-clock-in').value = data.clock_in;
+        document.getElementById('edit-clock-out').value = data.clock_out;
+        document.getElementById('edit-status').value = data.status;
+        document.getElementById('edit-admin-remarks').value = data.admin_remarks || '';
+
+        // Configure action URL dynamically
+        form.action = `/attendance/${data.id}/update`;
+        title.innerText = `Staff: ${data.staff_name} | Date: ${data.date_formatted}`;
+
+        modal.classList.remove('hidden');
+    }
+
+    function closeEditModal() {
+        const modal = document.getElementById('edit-log-modal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    // Initialize Chart.js
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('weeklyPerformanceChart');
+        if (ctx) {
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: @json($chartLabels ?? []),
+                    datasets: [
+                        {
+                            label: 'Productive Hours',
+                            data: @json($chartHours ?? []),
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.35,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Tasks Logged',
+                            data: @json($chartLogsCount ?? []),
+                            type: 'bar',
+                            borderColor: '#818cf8',
+                            backgroundColor: 'rgba(129, 140, 248, 0.85)',
+                            hoverBackgroundColor: '#4f46e5',
+                            borderWidth: 0,
+                            borderRadius: 6,
+                            barPercentage: 0.5,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                font: {
+                                    family: "'Inter', sans-serif",
+                                    size: 11,
+                                    weight: 'bold'
+                                },
+                                color: '#475569',
+                                usePointStyle: true,
+                                padding: 15
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: '#0f172a',
+                            titleFont: { family: "'Inter', sans-serif", size: 12, weight: 'bold' },
+                            bodyFont: { family: "'Inter', sans-serif", size: 11 },
+                            padding: 10,
+                            cornerRadius: 8,
+                            boxPadding: 6
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: {
+                                font: { family: "'Inter', sans-serif", size: 10, weight: '600' },
+                                color: '#64748b'
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Hours worked',
+                                font: { family: "'Inter', sans-serif", size: 10, weight: 'bold' },
+                                color: '#3b82f6'
+                            },
+                            ticks: {
+                                font: { family: "'Inter', sans-serif", size: 10 },
+                                color: '#64748b'
+                            },
+                            grid: {
+                                color: '#f1f5f9'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Tasks logged',
+                                font: { family: "'Inter', sans-serif", size: 10, weight: 'bold' },
+                                color: '#818cf8'
+                            },
+                            ticks: {
+                                precision: 0,
+                                font: { family: "'Inter', sans-serif", size: 10 },
+                                color: '#64748b'
+                            },
+                            grid: {
+                                drawOnChartArea: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    });
+    let weeklyReportsData = @json($weeklyReports ?? []);
+
+    function openWeeklyReportModal(id) {
+        const report = weeklyReportsData.find(r => r.id == id);
+        if (!report) return;
+
+        const modal = document.getElementById('weekly-report-modal');
+        const title = document.getElementById('reportModalTitle');
+        const dateRange = document.getElementById('reportModalDateRange');
+        const body = document.getElementById('reportModalBody');
+
+        if (!modal || !title || !dateRange || !body) return;
+
+        // format date helper
+        const formatDate = (dateStr) => {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        };
+
+        title.innerText = "Weekly Performance & Activity Summary";
+        dateRange.innerText = `Week: ${formatDate(report.start_date)} - ${formatDate(report.end_date)}`;
+        body.innerHTML = parseReportBody(report.report_content);
+
+        modal.classList.remove('hidden');
+    }
+
+    function closeWeeklyReportModal() {
+        const modal = document.getElementById('weekly-report-modal');
+        if (modal) modal.classList.add('hidden');
+    }
+
+    function parseReportBody(content) {
+        if (!content) return '<p class="text-slate-400 text-xs italic">No content available.</p>';
+        
+        let lines = content.split('\n');
+        let html = '<div class="space-y-4 font-sans text-xs sm:text-sm text-slate-600 leading-relaxed">';
+        let inList = false;
+        
+        for (let line of lines) {
+            let trimmed = line.trim();
+            if (!trimmed) continue;
+            
+            // Check headers
+            if (trimmed.startsWith('###')) {
+                if (inList) { html += '</ul>'; inList = false; }
+                let title = trimmed.replace(/^###\s*/, '');
+                html += `<h3 class="text-xs sm:text-sm font-extrabold text-indigo-950 mt-6 mb-3 uppercase tracking-wider flex items-center gap-2 border-b border-slate-100 pb-2">
+                    <span class="w-1.5 h-3 bg-indigo-600 rounded-full"></span>
+                    ${title}
+                </h3>`;
+            } else if (trimmed.startsWith('##')) {
+                if (inList) { html += '</ul>'; inList = false; }
+                let title = trimmed.replace(/^##\s*/, '');
+                html += `<h2 class="text-sm sm:text-base font-extrabold text-indigo-900 mt-7 mb-4 flex items-center gap-2">
+                    ${title}
+                </h2>`;
+            } else if (trimmed.startsWith('-') || trimmed.startsWith('*')) {
+                if (!inList) { html += '<ul class="space-y-2.5 my-3">'; inList = true; }
+                let item = trimmed.replace(/^[-*]\s*/, '');
+                // Highlight strong text
+                item = item.replace(/\*\*(.*?)\*\*/g, '<strong class="text-slate-900 font-bold">$1</strong>');
+                html += `<li class="flex items-start gap-2.5">
+                    <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0"></span>
+                    <span>${item}</span>
+                </li>`;
+            } else {
+                if (inList) { html += '</ul>'; inList = false; }
+                // Highlight strong text
+                let text = trimmed.replace(/\*\*(.*?)\*\*/g, '<strong class="text-slate-900 font-bold">$1</strong>');
+                html += `<p class="my-2.5 font-medium text-slate-600 leading-relaxed">${text}</p>`;
+            }
+        }
+        if (inList) { html += '</ul>'; }
+        html += '</div>';
+        return html;
+    }
+
+    function triggerWeeklyReportGeneration() {
+        const btn = document.getElementById('compileBtn');
+        if (!btn || btn.disabled) return;
+
+        btn.disabled = true;
+        const originalContent = btn.innerHTML;
+        btn.innerHTML = `<svg class="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Compiling...`;
+        btn.classList.add('opacity-75', 'cursor-not-allowed');
+
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || "{{ csrf_token() }}";
+
+        fetch('/admin/weekly-efficiency/generate', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw new Error(err.message || 'Generation failed') });
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success && data.report) {
+                // Add report to local data array
+                weeklyReportsData.unshift(data.report);
+
+                // Format dates
+                const formatDate = (dateStr) => {
+                    const date = new Date(dateStr);
+                    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                };
+                const formattedStart = formatDate(data.report.start_date);
+                const formattedEnd = formatDate(data.report.end_date);
+
+                // Prepend to reports UI container
+                const container = document.getElementById('reportsListContainer');
+                if (container) {
+                    const noReportsMsg = container.querySelector('.border-dashed');
+                    if (noReportsMsg) noReportsMsg.remove();
+
+                    const newCard = document.createElement('div');
+                    newCard.className = "group cursor-pointer p-3 bg-slate-50 hover:bg-indigo-50/70 border border-slate-200/60 hover:border-indigo-200 rounded-2xl transition duration-200 flex items-center justify-between";
+                    newCard.onclick = () => openWeeklyReportModal(data.report.id);
+                    newCard.innerHTML = `
+                        <div class="flex items-start gap-3 min-w-0">
+                            <span class="bg-indigo-100 text-indigo-700 p-2.5 rounded-xl group-hover:scale-105 transition shrink-0">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                            </span>
+                            <div class="min-w-0">
+                                <h4 class="text-xs font-bold text-slate-800 leading-tight truncate">Performance Report</h4>
+                                <p class="text-[10px] text-slate-400 mt-1 font-semibold truncate">${formattedStart} - ${formattedEnd}</p>
+                            </div>
+                        </div>
+                        <svg class="w-4 h-4 text-slate-400 group-hover:text-indigo-600 transition shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+                    `;
+                    container.prepend(newCard);
+                }
+
+                // Show success message
+                alert("Weekly performance & efficiency report compiled successfully!");
+                // Open it immediately for the user to review
+                openWeeklyReportModal(data.report.id);
+            } else {
+                alert("Failed to generate report: " + (data.message || 'Unknown error'));
+            }
+        })
+        .catch(error => {
+            console.error(error);
+            alert("Error: " + error.message);
+        })
+        .finally(() => {
+            btn.disabled = false;
+            btn.innerHTML = originalContent;
+            btn.classList.remove('opacity-75', 'cursor-not-allowed');
+        });
+    }
+    @endif
+
+    // Simple Clock-Out Logic
+    function openClockOutModal() {
+        const modal = document.getElementById('clock-out-modal');
+        if (modal) {
+            modal.classList.remove('hidden');
+        }
+    }
+
+    function submitClockOut() {
+        const form = document.getElementById('clock-out-form');
+        if (form) form.submit();
+    }
+
+    // Toggle settings tabs
+    function switchSettingsTab(tabName) {
+        const officeTabBtn = document.getElementById('tab-btn-office');
+        const holidayTabBtn = document.getElementById('tab-btn-holiday');
+        const officePanel = document.getElementById('settings-panel-office');
+        const holidayPanel = document.getElementById('settings-panel-holiday');
+        
+        if (!officeTabBtn || !holidayTabBtn || !officePanel || !holidayPanel) return;
+
+        if (tabName === 'office') {
+            officeTabBtn.classList.add('border-indigo-600', 'text-indigo-600');
+            officeTabBtn.classList.remove('border-transparent', 'text-slate-400');
+            holidayTabBtn.classList.remove('border-indigo-600', 'text-indigo-600');
+            holidayTabBtn.classList.add('border-transparent', 'text-slate-400');
+            
+            officePanel.classList.remove('hidden');
+            officePanel.classList.add('block');
+            holidayPanel.classList.add('hidden');
+            holidayPanel.classList.remove('block');
+        } else {
+            holidayTabBtn.classList.add('border-indigo-600', 'text-indigo-600');
+            holidayTabBtn.classList.remove('border-transparent', 'text-slate-400');
+            officeTabBtn.classList.remove('border-indigo-600', 'text-indigo-600');
+            officeTabBtn.classList.add('border-transparent', 'text-slate-400');
+            
+            holidayPanel.classList.remove('hidden');
+            holidayPanel.classList.add('block');
+            officePanel.classList.add('hidden');
+            officePanel.classList.remove('block');
+        }
+    }
+
+    // Toggle leave tabs
+    function switchLeaveTab(tabId) {
+        // Hide all tab contents
+        const contents = document.querySelectorAll('.leave-tab-content');
+        contents.forEach(el => el.classList.add('hidden'));
+
+        // Show selected tab content
+        const activeContent = document.getElementById(tabId);
+        if (activeContent) {
+            activeContent.classList.remove('hidden');
+        }
+
+        // Reset all tab button styles
+        const buttons = document.querySelectorAll('.leave-tab-btn');
+        buttons.forEach(btn => {
+            btn.classList.remove('bg-white', 'text-indigo-600', 'shadow-sm');
+            btn.classList.add('text-slate-600', 'hover:text-slate-900');
+        });
+
+        // Set active style for clicked button
+        const activeBtn = document.getElementById(tabId + '-btn');
+        if (activeBtn) {
+            activeBtn.classList.remove('text-slate-600', 'hover:text-slate-900');
+            activeBtn.classList.add('bg-white', 'text-indigo-600', 'shadow-sm');
+        }
+    }
+
+    // Toggle collapsible panels on dashboard
+    function toggleCollapsiblePanel(contentId, chevronId) {
+        const el = document.getElementById(contentId);
+        const chevron = document.getElementById(chevronId);
+        if (!el) return;
+        
+        if (el.classList.contains('hidden')) {
+            el.classList.remove('hidden');
+            if (chevron) chevron.classList.add('rotate-180');
+        } else {
+            el.classList.add('hidden');
+            if (chevron) chevron.classList.remove('rotate-180');
+        }
+    }
+</script>
+@endsection

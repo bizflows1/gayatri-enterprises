@@ -1,0 +1,104 @@
+/* ================================================
+   Gayatri Enterprises — Filament Admin Polish
+   ================================================ */
+
+/* ---- Sidebar ---- */
+.fi-sidebar {
+    border-right: 1px solid rgb(229 231 235);
+}
+
+.fi-sidebar-header {
+    padding: 1.25rem 1rem 1rem;
+    border-bottom: 1px solid rgb(229 231 235);
+    margin-bottom: 0.5rem;
+}
+
+/* Nav group labels — uppercase small caps style */
+.fi-sidebar-group-label {
+    font-size: 0.6rem !important;
+    letter-spacing: 0.12em !important;
+    text-transform: uppercase !important;
+    font-weight: 700 !important;
+    opacity: 0.55;
+}
+
+/* Nav item hover/active refinement */
+.fi-sidebar-item-button {
+    border-radius: 0.5rem !important;
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+/* Active nav item: green left accent strip */
+.fi-sidebar-item.fi-active .fi-sidebar-item-button,
+.fi-sidebar-item-button[aria-current="page"] {
+    background-color: rgb(27 122 82 / 0.1) !important;
+    box-shadow: inset 3px 0 0 0 #1B7A52;
+}
+
+/* ---- Stats overview widgets ---- */
+.fi-wi-stats-overview-stat {
+    border-top: 3px solid rgb(27 122 82 / 0.65) !important;
+}
+
+.fi-wi-stats-overview-stat-value {
+    font-weight: 700 !important;
+}
+
+/* ---- Table headers ---- */
+.fi-ta-header-cell-label {
+    font-size: 0.68rem !important;
+    letter-spacing: 0.08em !important;
+    text-transform: uppercase !important;
+    font-weight: 700 !important;
+    opacity: 0.65;
+}
+
+/* ---- Sections / Cards ---- */
+.fi-section {
+    box-shadow: 0 1px 3px rgb(0 0 0 / 0.05), 0 1px 2px rgb(0 0 0 / 0.04) !important;
+    border-radius: 0.75rem !important;
+}
+
+/* ---- Topbar ---- */
+.fi-topbar {
+    border-bottom: 1px solid rgb(229 231 235);
+}
+
+/* ---- Page header ---- */
+.fi-page-header-heading {
+    font-weight: 700 !important;
+    letter-spacing: -0.02em;
+}
+
+/* ---- Login page — subtle gradient bg ---- */
+.fi-simple-layout {
+    background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 55%, #f0f9ff 100%) !important;
+    min-height: 100vh;
+}
+
+/* Login card polish */
+.fi-simple-main {
+    box-shadow: 0 8px 32px rgb(27 122 82 / 0.10), 0 1px 4px rgb(0 0 0 / 0.06) !important;
+    border-radius: 1rem !important;
+    border: 1px solid rgb(27 122 82 / 0.12) !important;
+}
+
+/* ---- Badges ---- */
+.fi-badge {
+    border-radius: 9999px !important;
+    font-size: 0.68rem !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.04em !important;
+}
+
+/* ---- Buttons ---- */
+.fi-btn-primary {
+    font-weight: 600 !important;
+    letter-spacing: 0.03em;
+}
+
+/* ---- Form sections ---- */
+.fi-fo-field-wrp-label > label {
+    font-weight: 600 !important;
+    font-size: 0.8rem !important;
+}

@@ -1,0 +1,31 @@
+{
+    "name": "Gayatri Enterprises",
+    "short_name": "Gayatri Portal",
+    "description": "Client & Staff Portal for Gayatri Enterprises",
+    "id": "/portal",
+    "start_url": "/portal?source=pwa",
+    "scope": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#1B7A52",
+    "icons": [
+        {
+            "src": "/pwa-icon.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/pwa-icon.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any"
+        },
+        {
+            "src": "/pwa-icon.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "maskable"
+        }
+    ]
+}
