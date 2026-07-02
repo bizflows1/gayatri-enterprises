@@ -2,8 +2,8 @@ FROM php:8.2-apache
 
 # System dependencies
 RUN apt-get update && apt-get install -y \
-    git curl zip unzip libzip-dev libpng-dev default-mysql-client \
-    && docker-php-ext-install pdo pdo_mysql zip gd opcache \
+    git curl zip unzip libzip-dev libpng-dev libicu-dev default-mysql-client \
+    && docker-php-ext-install pdo pdo_mysql zip gd opcache intl \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Composer
