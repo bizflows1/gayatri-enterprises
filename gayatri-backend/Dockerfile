@@ -26,13 +26,15 @@ WORKDIR /var/www/html
 # Copy app
 COPY . .
 
+# Create storage and bootstrap/cache directories so realpath checks pass during package discovery
+RUN mkdir -p storage/logs storage/framework/cache storage/framework/sessions \
+             storage/framework/views bootstrap/cache
+
 # Install PHP dependencies
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
 # Storage permissions
-RUN mkdir -p storage/logs storage/framework/cache storage/framework/sessions \
-             storage/framework/views bootstrap/cache \
-    && chmod -R 775 storage bootstrap/cache \
+RUN chmod -R 775 storage bootstrap/cache \
     && chown -R www-data:www-data storage bootstrap/cache
 
 # Start script — runs migrations then starts Apache
