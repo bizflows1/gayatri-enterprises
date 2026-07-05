@@ -1,6 +1,12 @@
 #!/bin/bash
 set -e
 
+# Strip hidden CR characters that Render dashboard sometimes injects into env vars
+export APP_URL=$(echo "${APP_URL}" | tr -d '\r')
+export FRONTEND_URLS=$(echo "${FRONTEND_URLS}" | tr -d '\r')
+export SANCTUM_STATEFUL_DOMAINS=$(echo "${SANCTUM_STATEFUL_DOMAINS}" | tr -d '\r')
+export DB_HOST=$(echo "${DB_HOST}" | tr -d '\r')
+
 echo "==> Caching config..."
 php artisan config:cache
 php artisan route:cache
