@@ -41,10 +41,10 @@ class AuthController extends Controller
             'gstin' => $data['gstin'] ?? null,
         ]);
 
-        Auth::guard('web')->login($user);
-        $request->session()->regenerate();
+        $user->tokens()->delete();
+        $token = $user->createToken('api-token')->plainTextToken;
 
-        return response()->json(['user' => $user, 'client' => $client], 201);
+        return response()->json(['user' => $user, 'client' => $client, 'token' => $token], 201);
     }
 
     public function login(Request $request)
@@ -58,7 +58,6 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid credentials.'], 401);
         }
 
-        $request->session()->regenerate();
         $user = Auth::guard('web')->user();
 
         if (! $user->is_active) {
@@ -66,14 +65,15 @@ class AuthController extends Controller
             return response()->json(['message' => 'Account is blocked. Contact admin.'], 403);
         }
 
-        return response()->json(['user' => $user, 'client' => $user->client]);
+        $user->tokens()->delete();
+        $token = $user->createToken('api-token')->plainTextToken;
+
+        return response()->json(['user' => $user, 'client' => $user->client, 'token' => $token]);
     }
 
     public function logout(Request $request)
     {
-        Auth::guard('web')->logout();
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
+        $request->user()->currentAccessToken()->delete();
 
         return response()->json(['message' => 'Logged out.']);
     }

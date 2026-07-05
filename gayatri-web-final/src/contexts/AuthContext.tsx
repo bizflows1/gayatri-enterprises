@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { api, ApiError } from "../lib/api";
+import { api, ApiError, setToken, clearToken, getToken } from "../lib/api";
 
 interface User {
   id: number;
@@ -34,6 +34,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!getToken()) { setLoading(false); return; }
     api
       .get<{ user: User; client: Client }>("/api/auth/me")
       .then((res) => {
@@ -41,25 +42,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setClient(res.client);
       })
       .catch(() => {
-        // not logged in — fine, leave user/client null
+        clearToken();
       })
       .finally(() => setLoading(false));
   }, []);
 
   async function register(data: { name: string; email: string; password: string; company_name: string; gstin?: string; phone?: string }) {
-    const res = await api.post<{ user: User; client: Client }>("/api/auth/register", data);
+    const res = await api.post<{ user: User; client: Client; token: string }>("/api/auth/register", data);
+    setToken(res.token);
     setUser(res.user);
     setClient(res.client);
   }
 
   async function login(data: { email: string; password: string }) {
-    const res = await api.post<{ user: User; client: Client }>("/api/auth/login", data);
+    const res = await api.post<{ user: User; client: Client; token: string }>("/api/auth/login", data);
+    setToken(res.token);
     setUser(res.user);
     setClient(res.client);
   }
 
   async function logout() {
-    await api.post("/api/auth/logout");
+    await api.post("/api/auth/logout").catch(() => {});
+    clearToken();
     setUser(null);
     setClient(null);
   }

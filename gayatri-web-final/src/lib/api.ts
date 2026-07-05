@@ -11,19 +11,16 @@ export class ApiError extends Error {
   }
 }
 
-function readCookie(name: string): string | null {
-  const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
-  return match ? decodeURIComponent(match[1]) : null;
+export function getToken(): string | null {
+  return localStorage.getItem("auth_token");
 }
 
-let csrfReady: Promise<void> | null = null;
+export function setToken(token: string): void {
+  localStorage.setItem("auth_token", token);
+}
 
-/** Sanctum's SPA flow: hit this once to get the XSRF-TOKEN cookie before any mutating request. */
-function ensureCsrfCookie(): Promise<void> {
-  if (!csrfReady) {
-    csrfReady = fetch(`${API_URL}/sanctum/csrf-cookie`, { credentials: "include" }).then(() => undefined);
-  }
-  return csrfReady;
+export function clearToken(): void {
+  localStorage.removeItem("auth_token");
 }
 
 interface RequestOptions {
@@ -32,23 +29,18 @@ interface RequestOptions {
 }
 
 async function request<T>(path: string, { method = "GET", body }: RequestOptions = {}): Promise<T> {
-  if (method !== "GET") {
-    await ensureCsrfCookie();
-  }
-
   const headers: Record<string, string> = {
     Accept: "application/json",
     "Content-Type": "application/json",
   };
 
-  const xsrfToken = readCookie("XSRF-TOKEN");
-  if (xsrfToken) {
-    headers["X-XSRF-TOKEN"] = xsrfToken;
+  const token = getToken();
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
   }
 
   const response = await fetch(`${API_URL}${path}`, {
     method,
-    credentials: "include",
     headers,
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
@@ -68,4 +60,3 @@ export const api = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, body?: unknown) => request<T>(path, { method: "POST", body }),
 };
-
