@@ -126,6 +126,22 @@ export default function Footer() {
                 <li><Link to="/terms" className="hover:text-white hover:pl-2 transition-all">Terms</Link></li>
               </ul>
             </div>
+
+            <div>
+              <h4 className="text-xs uppercase tracking-widest font-semibold mb-6 text-slate-500">Portals</h4>
+              <ul className="space-y-4 text-sm text-slate-300">
+                <li>
+                  <a href="https://gayatri-enterprises.onrender.com/admin" target="_blank" rel="noopener noreferrer" className="hover:text-white hover:pl-2 transition-all flex items-center gap-2">
+                    Admin Login
+                  </a>
+                </li>
+                <li>
+                  <a href="https://gayatri-enterprises.onrender.com/admin" target="_blank" rel="noopener noreferrer" className="hover:text-white hover:pl-2 transition-all flex items-center gap-2">
+                    Staff Login
+                  </a>
+                </li>
+              </ul>
+            </div>
           </div>
         </div>
       </div>
